@@ -1,6 +1,17 @@
+use serde::Serialize;
 use vhdl_lang::ast::DesignFile;
 use vhdl_lang::ast::{AnyDesignUnit, AnyPrimaryUnit, InterfaceDeclaration, ModeIndication};
 
+#[cfg(target_arch = "wasm32")]
+use wasm_minimal_protocol::wasm_func;
+
+use crate::{decode_typst_arg_id, encode_typst_return};
+use crate::parse_store::get_parsed;
+
+#[cfg(target_arch = "wasm32")]
+wasm_minimal_protocol::initiate_protocol!();
+
+#[derive(Serialize)]
 pub struct PortEntry {
     pub name: String,
     pub mode: String,
@@ -8,7 +19,7 @@ pub struct PortEntry {
     pub constraint: String,
 }
 
-pub fn get_port_list(design: DesignFile) -> Result<Vec<PortEntry>, String> {
+pub fn get_port_list_from_design(design: DesignFile) -> Result<Vec<PortEntry>, String> {
     // Walk the design file looking for entity declarations
     for (_tokens, design_unit) in &design.design_units {
         let entity_decl = match design_unit {
@@ -89,4 +100,14 @@ pub fn get_port_list(design: DesignFile) -> Result<Vec<PortEntry>, String> {
     }
 
     return Err("no entity found in file".to_owned());
+}
+
+#[cfg_attr(target_arch = "wasm32", wasm_func)]
+fn get_port_list(id: &[u8]) -> Result<Vec<u8>, String> {
+    let id = decode_typst_arg_id(id)?;
+    let designfile = get_parsed(id)?;
+
+    let portlist = get_port_list_from_design(designfile)?;
+
+    encode_typst_return(&portlist)
 }

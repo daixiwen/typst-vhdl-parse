@@ -6,6 +6,15 @@ use std::hash::{Hash, Hasher};
 use std::sync::Mutex;
 use vhdl_lang::ast::DesignFile;
 use vhdl_lang::{Source, VHDLParser, VHDLStandard};
+use serde::Serialize;
+
+use crate::{decode_typst_arg, encode_typst_return};
+
+#[cfg(target_arch = "wasm32")]
+use wasm_minimal_protocol::wasm_func;
+
+#[cfg(target_arch = "wasm32")]
+wasm_minimal_protocol::initiate_protocol!();
 
 // context store: storage of the parsed VHDL data
 lazy_static! {
@@ -22,7 +31,7 @@ lazy_static! {
 }
 
 /// parse a VHDL file. Returns its ID and an array of diagnostic messages
-pub fn parse(
+pub fn parse_content(
     file_name: &str,
     vhdl_standard: &str,
     contents: &str,
@@ -80,4 +89,30 @@ pub fn get_parsed(id: u64) -> Result<DesignFile, String> {
 
         None => Err("didn't find parsed file".to_owned()),
     }
+}
+
+#[derive(Serialize)]
+struct ParseResponse {
+    id: String,
+    messages: Vec<String>
+}
+
+#[cfg_attr(target_arch = "wasm32", wasm_func)]
+fn parse(
+    file_name: &[u8],
+    vhdl_standard: &[u8],
+    contents: &[u8]) -> Result<Vec<u8>, String> {
+    
+    let file_name = decode_typst_arg(file_name)?;
+    let vhdl_standard = decode_typst_arg(vhdl_standard)?;
+    let contents = decode_typst_arg(contents)?;
+
+    let (id, messages) = parse_content(file_name, vhdl_standard, contents)?;
+
+    let response = ParseResponse {
+        id: id.to_string(),
+        messages: messages
+    };
+
+    encode_typst_return(&response)
 }
