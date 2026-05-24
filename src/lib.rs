@@ -17,8 +17,7 @@ pub fn decode_typst_arg_id(arg: &[u8]) -> Result<u64, String> {
 
 /// encode a reply to typst from any type
 pub fn encode_typst_return<T: Serialize>(arg: &T) -> Result<Vec<u8>, String> {
-    
-    let mut buffer : Vec<u8> = Vec::new();
+    let mut buffer: Vec<u8> = Vec::new();
     ciborium::into_writer(&arg, &mut buffer).map_err(|e| e.to_string())?;
 
     Ok(buffer)

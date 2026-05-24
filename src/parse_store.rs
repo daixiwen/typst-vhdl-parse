@@ -1,12 +1,12 @@
 // this file handles the parsing of VHDL file and the local storage of the parsed structures
 
 use lazy_static::lazy_static;
+use serde::Serialize;
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::sync::Mutex;
 use vhdl_lang::ast::DesignFile;
 use vhdl_lang::{Source, VHDLParser, VHDLStandard};
-use serde::Serialize;
 
 use crate::{decode_typst_arg, encode_typst_return};
 
@@ -94,15 +94,11 @@ pub fn get_parsed(id: u64) -> Result<DesignFile, String> {
 #[derive(Serialize)]
 struct ParseResponse {
     id: String,
-    messages: Vec<String>
+    messages: Vec<String>,
 }
 
 #[cfg_attr(target_arch = "wasm32", wasm_func)]
-fn parse(
-    file_name: &[u8],
-    vhdl_standard: &[u8],
-    contents: &[u8]) -> Result<Vec<u8>, String> {
-    
+fn parse(file_name: &[u8], vhdl_standard: &[u8], contents: &[u8]) -> Result<Vec<u8>, String> {
     let file_name = decode_typst_arg(file_name)?;
     let vhdl_standard = decode_typst_arg(vhdl_standard)?;
     let contents = decode_typst_arg(contents)?;
@@ -111,7 +107,7 @@ fn parse(
 
     let response = ParseResponse {
         id: id.to_string(),
-        messages: messages
+        messages: messages,
     };
 
     encode_typst_return(&response)
