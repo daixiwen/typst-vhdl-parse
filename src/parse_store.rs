@@ -2,18 +2,18 @@
 
 use lazy_static::lazy_static;
 use std::collections::HashMap;
+use std::hash::{Hash, Hasher};
 use std::sync::Mutex;
 use vhdl_lang::ast::DesignFile;
-use vhdl_lang::{VHDLParser, VHDLStandard, Source};
-use std::hash::{Hash,Hasher};
+use vhdl_lang::{Source, VHDLParser, VHDLStandard};
 
 // context store: storage of the parsed VHDL data
 lazy_static! {
     // We associate each parsed data to a unique ID, which is made by hashing the original
     // contents. The ID is what is returned to typst, and used as first arguments in all
-    // the other function calls to access the parsed data. If the VHDL contents change during 
-    // live editing, the hash also changes and typst will not use the cached results of the 
-    // different functions in this package. 
+    // the other function calls to access the parsed data. If the VHDL contents change during
+    // live editing, the hash also changes and typst will not use the cached results of the
+    // different functions in this package.
     static ref PARSED_STORE: Mutex<HashMap<u64, DesignFile>> = Mutex::new(HashMap::new());
 
     // we also need to store a file name to id mapping, so that during live editing if a new
@@ -22,15 +22,23 @@ lazy_static! {
 }
 
 /// parse a VHDL file. Returns its ID and an array of diagnostic messages
-pub fn parse(file_name: &str, vhdl_standard: &str, contents: &str) -> Result<(u64, Vec<String>), String> {
+pub fn parse(
+    file_name: &str,
+    vhdl_standard: &str,
+    contents: &str,
+) -> Result<(u64, Vec<String>), String> {
     let parser = VHDLParser::new(match vhdl_standard {
-          "1993" | "93" => VHDLStandard::VHDL1993,
-          "2019" | "19" => VHDLStandard::VHDL2019,
-          _ => VHDLStandard::VHDL2008 });
-    
+        "1993" | "93" => VHDLStandard::VHDL1993,
+        "2019" | "19" => VHDLStandard::VHDL2019,
+        _ => VHDLStandard::VHDL2008,
+    });
+
     // Parse the VHDL file
     let mut diagnostics = Vec::new();
-    let result = parser.parse_design_source(&Source::inline(std::path::Path::new(file_name), contents), &mut diagnostics);
+    let result = parser.parse_design_source(
+        &Source::inline(std::path::Path::new(file_name), contents),
+        &mut diagnostics,
+    );
 
     // calculate the id from the VHDL contents
     let mut hash = std::hash::DefaultHasher::new();
@@ -55,7 +63,10 @@ pub fn parse(file_name: &str, vhdl_standard: &str, contents: &str) -> Result<(u6
     id_index.insert(file_name.to_owned(), id);
 
     // turn the diagnostics into a vector of strings
-    let messages: Vec<String> = diagnostics.iter().map(|x|  format!("{}: {}", x.pos.range.start.line,x.message)).collect();
+    let messages: Vec<String> = diagnostics
+        .iter()
+        .map(|x| format!("{}: {}", x.pos.range.start.line, x.message))
+        .collect();
 
     return Ok((id, messages));
 }
@@ -67,6 +78,6 @@ pub fn get_parsed(id: u64) -> Result<DesignFile, String> {
     match parsed_index.get(&id) {
         Some(design) => Ok(design.clone()),
 
-        None => Err("didn't find parsed file".to_owned())
+        None => Err("didn't find parsed file".to_owned()),
     }
 }

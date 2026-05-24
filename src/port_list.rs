@@ -1,17 +1,14 @@
 use vhdl_lang::ast::DesignFile;
-use vhdl_lang::ast::{
-    AnyDesignUnit, AnyPrimaryUnit, InterfaceDeclaration, ModeIndication,
-};
+use vhdl_lang::ast::{AnyDesignUnit, AnyPrimaryUnit, InterfaceDeclaration, ModeIndication};
 
 pub struct PortEntry {
-    pub name : String,
+    pub name: String,
     pub mode: String,
     pub port_type: String,
-    pub constraint: String
+    pub constraint: String,
 }
 
 pub fn get_port_list(design: DesignFile) -> Result<Vec<PortEntry>, String> {
-    
     // Walk the design file looking for entity declarations
     for (_tokens, design_unit) in &design.design_units {
         let entity_decl = match design_unit {
@@ -22,7 +19,7 @@ pub fn get_port_list(design: DesignFile) -> Result<Vec<PortEntry>, String> {
         // Look for the port clause
         if let Some(port_list) = &entity_decl.port_clause {
             // loop through each port and fill up an array with entries
-            let mut entries : Vec<PortEntry> = Vec::new();
+            let mut entries: Vec<PortEntry> = Vec::new();
 
             for port in &port_list.items {
                 match port {
@@ -46,7 +43,7 @@ pub fn get_port_list(design: DesignFile) -> Result<Vec<PortEntry>, String> {
                                 let typ = simple.subtype_indication.type_mark.to_string();
                                 let constraint = match &simple.subtype_indication.constraint {
                                     Some(constraint) => constraint.to_string(),
-                                    None => String::new()
+                                    None => String::new(),
                                 };
                                 (mode, typ, constraint)
                             }
@@ -57,11 +54,12 @@ pub fn get_port_list(design: DesignFile) -> Result<Vec<PortEntry>, String> {
                         };
 
                         for name in names {
-                            entries.push(PortEntry { 
-                                name: name, 
-                                mode: mode_str.clone(), 
-                                port_type: type_str.clone(), 
-                                constraint: constraint_str.clone() });
+                            entries.push(PortEntry {
+                                name: name,
+                                mode: mode_str.clone(),
+                                port_type: type_str.clone(),
+                                constraint: constraint_str.clone(),
+                            });
                         }
                     }
                     InterfaceDeclaration::File(file_decl) => {
@@ -72,11 +70,12 @@ pub fn get_port_list(design: DesignFile) -> Result<Vec<PortEntry>, String> {
                             .collect();
                         let typ = file_decl.subtype_indication.to_string();
                         for name in names {
-                            entries.push(PortEntry { 
-                                name: name, 
-                                mode: "file".to_owned(), 
-                                port_type: typ.clone(), 
-                                constraint: String::new() });
+                            entries.push(PortEntry {
+                                name: name,
+                                mode: "file".to_owned(),
+                                port_type: typ.clone(),
+                                constraint: String::new(),
+                            });
                         }
                     }
                     _ => {}
@@ -85,9 +84,8 @@ pub fn get_port_list(design: DesignFile) -> Result<Vec<PortEntry>, String> {
 
             return Ok(entries);
         } else {
-            return Ok(Vec::default())
+            return Ok(Vec::default());
         }
-
     }
 
     return Err("no entity found in file".to_owned());
