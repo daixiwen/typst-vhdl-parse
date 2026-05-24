@@ -5,7 +5,7 @@ use vhdl_lang::ast::{AnyDesignUnit, AnyPrimaryUnit, InterfaceDeclaration, ModeIn
 #[cfg(target_arch = "wasm32")]
 use wasm_minimal_protocol::wasm_func;
 
-use crate::parse_store::get_parsed;
+use crate::parse_store::{get_content, get_parsed};
 use crate::{decode_typst_arg_id, encode_typst_return};
 
 #[cfg(target_arch = "wasm32")]
@@ -17,9 +17,10 @@ pub struct PortEntry {
     pub mode: String,
     pub port_type: String,
     pub constraint: String,
+    pub description: String,
 }
 
-pub fn get_port_list_from_design(design: DesignFile) -> Result<Vec<PortEntry>, String> {
+pub fn get_port_list_from_design(design: DesignFile, content: &str) -> Result<Vec<PortEntry>, String> {
     // Walk the design file looking for entity declarations
     for (_tokens, design_unit) in &design.design_units {
         let entity_decl = match design_unit {
@@ -65,11 +66,13 @@ pub fn get_port_list_from_design(design: DesignFile) -> Result<Vec<PortEntry>, S
                         };
 
                         for name in names {
+                            let description = find_port_description(content, &name);
                             entries.push(PortEntry {
                                 name: name,
                                 mode: mode_str.clone(),
                                 port_type: type_str.clone(),
                                 constraint: constraint_str.clone(),
+                                description,
                             });
                         }
                     }
@@ -81,11 +84,13 @@ pub fn get_port_list_from_design(design: DesignFile) -> Result<Vec<PortEntry>, S
                             .collect();
                         let typ = file_decl.subtype_indication.to_string();
                         for name in names {
+                            let description = find_port_description(content, &name);
                             entries.push(PortEntry {
                                 name: name,
                                 mode: "file".to_owned(),
                                 port_type: typ.clone(),
                                 constraint: String::new(),
+                                description,
                             });
                         }
                     }
@@ -102,12 +107,63 @@ pub fn get_port_list_from_design(design: DesignFile) -> Result<Vec<PortEntry>, S
     return Err("no entity found in file".to_owned());
 }
 
+/// Find the description (comment) associated with a port declaration in the VHDL source.
+/// A description is either a comment on the same line as the port (`-- comment`),
+/// or a solo comment on the line immediately before the port declaration.
+/// If no description is found, returns an empty string.
+fn find_port_description(content: &str, port_name: &str) -> String {
+    let lines: Vec<&str> = content.lines().collect();
+
+    for (i, line) in lines.iter().enumerate() {
+        // Split the line at the first '--' to separate code from comment
+        let (code_part, same_line_comment) = match line.find("--") {
+            Some(pos) => (&line[..pos], Some(line[pos + 2..].trim())),
+            None => (*line, None),
+        };
+
+        // Check if this line contains the port declaration.
+        // A port declaration line must contain a colon (for the mode indication)
+        // and the port name must appear as a word before the colon.
+        if let Some(colon_pos) = code_part.find(':') {
+            let before_colon = &code_part[..colon_pos];
+            if contains_word(before_colon, port_name) {
+                // Same-line comment takes priority
+                if let Some(comment) = same_line_comment {
+                    if !comment.is_empty() {
+                        return comment.to_string();
+                    }
+                }
+
+                // Check previous line for a solo comment
+                if i > 0 {
+                    let prev_line = lines[i - 1].trim();
+                    if prev_line.starts_with("--") {
+                        return prev_line[2..].trim().to_string();
+                    }
+                }
+
+                return String::new();
+            }
+        }
+    }
+
+    String::new()
+}
+
+/// Check if `word` appears as a whole word in `text`.
+/// Words are separated by characters that are not alphanumeric or underscore.
+fn contains_word(text: &str, word: &str) -> bool {
+    text.split(|c: char| !c.is_alphanumeric() && c != '_')
+        .any(|w| w == word)
+}
+
 #[cfg_attr(target_arch = "wasm32", wasm_func)]
 fn get_port_list(id: &[u8]) -> Result<Vec<u8>, String> {
     let id = decode_typst_arg_id(id)?;
     let designfile = get_parsed(id)?;
+    let content = get_content(id)?;
 
-    let portlist = get_port_list_from_design(designfile)?;
+    let portlist = get_port_list_from_design(designfile, &content)?;
 
     encode_typst_return(&portlist)
 }
