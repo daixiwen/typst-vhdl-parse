@@ -1,11 +1,12 @@
 use serde::Serialize;
 use vhdl_lang::ast::DesignFile;
 use vhdl_lang::ast::{AnyDesignUnit, AnyPrimaryUnit, InterfaceDeclaration, ModeIndication};
+use vhdl_lang::{Token, TokenAccess};
 
 #[cfg(target_arch = "wasm32")]
 use wasm_minimal_protocol::wasm_func;
 
-use crate::parse_store::{get_content, get_parsed};
+use crate::parse_store::get_parsed;
 use crate::{decode_typst_arg_id, encode_typst_return};
 
 #[cfg(target_arch = "wasm32")]
@@ -20,9 +21,9 @@ pub struct PortEntry {
     pub description: String,
 }
 
-pub fn get_port_list_from_design(design: DesignFile, content: &str) -> Result<Vec<PortEntry>, String> {
+pub fn get_port_list_from_design(design: DesignFile) -> Result<Vec<PortEntry>, String> {
     // Walk the design file looking for entity declarations
-    for (_tokens, design_unit) in &design.design_units {
+    for (tokens, design_unit) in &design.design_units {
         let entity_decl = match design_unit {
             AnyDesignUnit::Primary(AnyPrimaryUnit::Entity(entity)) => entity,
             _ => continue,
@@ -36,14 +37,6 @@ pub fn get_port_list_from_design(design: DesignFile, content: &str) -> Result<Ve
             for port in &port_list.items {
                 match port {
                     InterfaceDeclaration::Object(obj_decl) => {
-                        // Get port name(s) - a single declaration can declare
-                        // multiple ports of the same type
-                        let names: Vec<String> = obj_decl
-                            .idents
-                            .iter()
-                            .map(|id| id.tree.item.name_utf8())
-                            .collect();
-
                         // Get mode (direction) and type from the mode indication
                         let (mode_str, type_str, constraint_str) = match &obj_decl.mode {
                             ModeIndication::Simple(simple) => {
@@ -65,8 +58,9 @@ pub fn get_port_list_from_design(design: DesignFile, content: &str) -> Result<Ve
                             }
                         };
 
-                        for name in names {
-                            let description = find_port_description(content, &name);
+                        for id in &obj_decl.idents {
+                            let name = id.tree.item.name_utf8();
+                            let description = find_port_description(tokens, id.tree.token);
                             entries.push(PortEntry {
                                 name: name,
                                 mode: mode_str.clone(),
@@ -77,14 +71,10 @@ pub fn get_port_list_from_design(design: DesignFile, content: &str) -> Result<Ve
                         }
                     }
                     InterfaceDeclaration::File(file_decl) => {
-                        let names: Vec<String> = file_decl
-                            .idents
-                            .iter()
-                            .map(|id| id.tree.item.name_utf8())
-                            .collect();
-                        let typ = file_decl.subtype_indication.to_string();
-                        for name in names {
-                            let description = find_port_description(content, &name);
+                        for id in &file_decl.idents {
+                            let name = id.tree.item.name_utf8();
+                            let typ = file_decl.subtype_indication.to_string();
+                            let description = find_port_description(tokens, id.tree.token);
                             entries.push(PortEntry {
                                 name: name,
                                 mode: "file".to_owned(),
@@ -107,42 +97,41 @@ pub fn get_port_list_from_design(design: DesignFile, content: &str) -> Result<Ve
     return Err("no entity found in file".to_owned());
 }
 
-/// Find the description (comment) associated with a port declaration in the VHDL source.
-/// A description is either a comment on the same line as the port (`-- comment`),
-/// or a solo comment on the line immediately before the port declaration.
+/// Find the description (comment) associated with a port declaration by inspecting
+/// the comments attached to tokens in the token stream.
+///
+/// The vhdl_lang tokenizer attaches comments to tokens:
+/// - `trailing`: a comment on the same line as the token, after it.
+///   Same-line port comments (e.g., `port_name : in std_logic; -- desc`) are attached
+///   as `trailing` on the **semicolon** token at the end of the line.
+/// - `leading`: comments on lines before the token. A solo comment on the line
+///   immediately before the port declaration is attached as the last `leading`
+///   comment on the **identifier** token.
+///
 /// If no description is found, returns an empty string.
-fn find_port_description(content: &str, port_name: &str) -> String {
-    let lines: Vec<&str> = content.lines().collect();
+fn find_port_description(tokens: &[Token], ident_token_id: vhdl_lang::TokenId) -> String {
+    let ident_token = tokens.index(ident_token_id);
+    let port_line = ident_token.pos.range.start.line;
 
-    for (i, line) in lines.iter().enumerate() {
-        // Split the line at the first '--' to separate code from comment
-        let (code_part, same_line_comment) = match line.find("--") {
-            Some(pos) => (&line[..pos], Some(line[pos + 2..].trim())),
-            None => (*line, None),
-        };
+    // 1) Check the identifier token's leading comments for a solo comment
+    //    on the line immediately before the port declaration.
+    if let Some(comments) = &ident_token.comments {
+        if let Some(leading) = comments.leading.last() {
+            // A leading comment on the line just before the port
+            if leading.range.end.line + 1 == port_line {
+                return leading.value.trim().to_string();
+            }
+        }
+    }
 
-        // Check if this line contains the port declaration.
-        // A port declaration line must contain a colon (for the mode indication)
-        // and the port name must appear as a word before the colon.
-        if let Some(colon_pos) = code_part.find(':') {
-            let before_colon = &code_part[..colon_pos];
-            if contains_word(before_colon, port_name) {
-                // Same-line comment takes priority
-                if let Some(comment) = same_line_comment {
-                    if !comment.is_empty() {
-                        return comment.to_string();
-                    }
+    // 2) Scan the token list for a semicolon on the same line that has a
+    //    trailing comment — this is the same-line port description.
+    for token in tokens.iter() {
+        if token.pos.range.start.line == port_line {
+            if let Some(comments) = &token.comments {
+                if let Some(trailing) = &comments.trailing {
+                    return trailing.value.trim().to_string();
                 }
-
-                // Check previous line for a solo comment
-                if i > 0 {
-                    let prev_line = lines[i - 1].trim();
-                    if prev_line.starts_with("--") {
-                        return prev_line[2..].trim().to_string();
-                    }
-                }
-
-                return String::new();
             }
         }
     }
@@ -150,20 +139,63 @@ fn find_port_description(content: &str, port_name: &str) -> String {
     String::new()
 }
 
-/// Check if `word` appears as a whole word in `text`.
-/// Words are separated by characters that are not alphanumeric or underscore.
-fn contains_word(text: &str, word: &str) -> bool {
-    text.split(|c: char| !c.is_alphanumeric() && c != '_')
-        .any(|w| w == word)
-}
-
 #[cfg_attr(target_arch = "wasm32", wasm_func)]
 fn get_port_list(id: &[u8]) -> Result<Vec<u8>, String> {
     let id = decode_typst_arg_id(id)?;
     let designfile = get_parsed(id)?;
-    let content = get_content(id)?;
 
-    let portlist = get_port_list_from_design(designfile, &content)?;
+    let portlist = get_port_list_from_design(designfile)?;
 
     encode_typst_return(&portlist)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::Path;
+    use vhdl_lang::{Source, VHDLParser, VHDLStandard};
+
+    fn parse_test_file() -> DesignFile {
+        let contents = std::fs::read_to_string("test/test.vhd").unwrap();
+        let parser = VHDLParser::new(VHDLStandard::VHDL2008);
+        let mut diagnostics = Vec::new();
+        parser.parse_design_source(
+            &Source::inline(Path::new("test.vhd"), &contents),
+            &mut diagnostics,
+        )
+    }
+
+    #[test]
+    fn test_port_descriptions() {
+        let design = parse_test_file();
+        let ports = get_port_list_from_design(design).unwrap();
+
+        // Ports with same-line comments
+        assert_eq!(ports[0].name, "clock");
+        assert_eq!(ports[0].description, "main clock");
+
+        assert_eq!(ports[1].name, "sreset");
+        assert_eq!(ports[1].description, "main reset, synchronous, active high");
+
+        assert_eq!(ports[2].name, "output_a");
+        assert_eq!(ports[2].description, "a regular output");
+
+        // Port with a solo comment on the line before
+        assert_eq!(ports[3].name, "input_b");
+        assert_eq!(ports[3].description, "one input");
+
+        // Ports without descriptions
+        assert_eq!(ports[4].name, "output_c");
+        assert_eq!(ports[4].description, "another output");
+
+        assert_eq!(ports[5].name, "input_d");
+        assert_eq!(ports[5].description, "another input");
+
+        assert_eq!(ports[6].name, "data_in");
+        assert_eq!(ports[6].description, "");
+
+        assert_eq!(ports[7].name, "data_out");
+        assert_eq!(ports[7].description, "data out");
+
+    }
 }

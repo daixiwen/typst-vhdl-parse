@@ -4,3 +4,6 @@ The source code is in the src/ directory:
 - lib.rs: main library file, general utility functions
 - parse_store.rs: VHDL file parsing, and storage for the parsed results, that can be recalled from any other function
 - port_list.rs: Extracts the port list from the parsed VHDL
+
+To run the tests on linux:
+cargo test --target x86_64-unknown-linux-gnu

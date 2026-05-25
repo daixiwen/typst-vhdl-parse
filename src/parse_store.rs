@@ -25,10 +25,6 @@ lazy_static! {
     // different functions in this package.
     static ref PARSED_STORE: Mutex<HashMap<u64, DesignFile>> = Mutex::new(HashMap::new());
 
-    // Store the raw VHDL content alongside the parsed data, so that
-    // comment extraction can be performed on the original source text.
-    static ref CONTENT_STORE: Mutex<HashMap<u64, String>> = Mutex::new(HashMap::new());
-
     // we also need to store a file name to id mapping, so that during live editing if a new
     // version of the file is parsed, we can remove the old version and prevent a leak
     static ref ID_STORE: Mutex<HashMap<String, u64>> = Mutex::new(HashMap::new());
@@ -61,21 +57,16 @@ pub fn parse_content(
     // get access to both indexes
     let mut id_index = ID_STORE.lock().unwrap();
     let mut parsed_index = PARSED_STORE.lock().unwrap();
-    let mut content_index = CONTENT_STORE.lock().unwrap();
 
     // check if we have parsed a file with the same name before
     if let Some(old_id) = id_index.get(file_name) {
         if parsed_index.remove(old_id).is_none() {
             return Err("Couldn't find the old parsed data".to_owned());
         }
-        content_index.remove(old_id);
     }
 
     // store the parsed data
     parsed_index.insert(id, result);
-
-    // store the raw content for comment extraction
-    content_index.insert(id, contents.to_owned());
 
     // update the ID index
     id_index.insert(file_name.to_owned(), id);
@@ -97,16 +88,6 @@ pub fn get_parsed(id: u64) -> Result<DesignFile, String> {
         Some(design) => Ok(design.clone()),
 
         None => Err("didn't find parsed file".to_owned()),
-    }
-}
-
-/// looks for the raw content of a previously parsed file
-pub fn get_content(id: u64) -> Result<String, String> {
-    let content_index = CONTENT_STORE.lock().unwrap();
-
-    match content_index.get(&id) {
-        Some(content) => Ok(content.clone()),
-        None => Err("didn't find content for parsed file".to_owned()),
     }
 }
 

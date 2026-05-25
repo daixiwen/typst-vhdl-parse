@@ -1,0 +1,80 @@
+-- Test VHDL file
+
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+
+entity test is
+  generic (
+    flag              : boolean;       -- a flag, can be true or false
+      -- a value with a default
+    value             : std_logic_vector(15 downto 0) := x"DEAD"
+  );
+  port (
+    clock             : in  std_logic; -- main clock
+    sreset            : in  std_logic; -- main reset, synchronous, active high
+
+    output_a          : out std_logic; -- a regular output
+      -- one input
+    input_b           : in std_logic;
+      -- one comment before, that will be ignored because we also have one on the same line as the port
+    output_c          : out std_logic;  -- another output
+    input_d           : in  std_logic;  -- another input
+    data_in           : in  std_logic_vector(15 downto 0);
+      -- data_in had no comment
+    data_out          : out  std_logic_vector(15 downto 0) -- data out
+  );
+end entity test;
+
+architecture rtl of test is
+
+  type fsm_t is (reset, idle, read_input, write_output);
+
+    -- state machine signal 
+  signal fsm: fsm_t;
+
+  signal mysignal : unsigned(15 downto 0) := (others => '0'); -- a signal with a comment on the same line
+
+begin  
+
+  process (clock)
+  begin
+    if rising_edge(clock) then
+      if sreset = '1' then
+        
+        fsm <= reset;
+        output_a <= '0';
+        output_c <= '0';
+        data_out <= (others => '0');
+
+      else
+        
+        case fsm is
+          when reset =>
+            fsm <= idle;
+
+          when idle =>
+            if input_b = '1' then
+              fsm <= read_input;
+            end if;
+
+          when read_input =>
+            if input_d = '1' then
+              fsm <= idle;
+            elsif data_in = std_logic_vector(value) then
+              fsm <= write_output;
+            end if;
+
+          when write_output =>
+            data_out <= std_logic_vector(value);
+            if input_b = '0' then
+              fsm <= idle;
+            end if;
+
+          when others =>
+            fsm <= reset;
+        end case;
+      end if;
+    end if;
+  end process;
+end architecture rtl;
