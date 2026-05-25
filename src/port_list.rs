@@ -7,7 +7,7 @@ use vhdl_lang::{Token, TokenAccess};
 use wasm_minimal_protocol::wasm_func;
 
 use crate::parse_store::get_parsed;
-use crate::{decode_typst_arg_id, encode_typst_return};
+use crate::{decode_typst_arg, decode_typst_arg_id, encode_typst_return};
 
 #[cfg(target_arch = "wasm32")]
 wasm_minimal_protocol::initiate_protocol!();
@@ -21,7 +21,13 @@ pub struct PortEntry {
     pub description: String,
 }
 
-pub fn get_port_list_from_design(design: DesignFile) -> Result<Vec<PortEntry>, String> {
+/// go through the design file, find the first entiry and extracts its port list.
+/// comments are extracted as description for each port. Both trailing comments
+/// (on the same line than the port) and leading comments (on the line before) are
+/// detected. If both a trailing and a leading comments are found, only one will
+/// be retained. If priority_trailing is true, the trailing comment will be used,
+/// and if failse, the leading comment.
+pub fn get_port_list_from_design(design: DesignFile, priority_trailing: bool) -> Result<Vec<PortEntry>, String> {
     // Walk the design file looking for entity declarations
     for (tokens, design_unit) in &design.design_units {
         let entity_decl = match design_unit {
@@ -60,7 +66,7 @@ pub fn get_port_list_from_design(design: DesignFile) -> Result<Vec<PortEntry>, S
 
                         for id in &obj_decl.idents {
                             let name = id.tree.item.name_utf8();
-                            let description = find_port_description(tokens, id.tree.token);
+                            let description = find_port_description(tokens, id.tree.token, priority_trailing);
                             entries.push(PortEntry {
                                 name: name,
                                 mode: mode_str.clone(),
@@ -74,7 +80,7 @@ pub fn get_port_list_from_design(design: DesignFile) -> Result<Vec<PortEntry>, S
                         for id in &file_decl.idents {
                             let name = id.tree.item.name_utf8();
                             let typ = file_decl.subtype_indication.to_string();
-                            let description = find_port_description(tokens, id.tree.token);
+                            let description = find_port_description(tokens, id.tree.token, priority_trailing);
                             entries.push(PortEntry {
                                 name: name,
                                 mode: "file".to_owned(),
@@ -109,11 +115,25 @@ pub fn get_port_list_from_design(design: DesignFile) -> Result<Vec<PortEntry>, S
 ///   comment on the **identifier** token.
 ///
 /// If no description is found, returns an empty string.
-fn find_port_description(tokens: &[Token], ident_token_id: vhdl_lang::TokenId) -> String {
+fn find_port_description(tokens: &[Token], ident_token_id: vhdl_lang::TokenId, priority_trailing: bool) -> String {
     let ident_token = tokens.index(ident_token_id);
     let port_line = ident_token.pos.range.start.line;
 
-    // 1) Check the identifier token's leading comments for a solo comment
+    if priority_trailing {
+        // Scan the token list for a semicolon on the same line that has a
+        //    trailing comment — this is the same-line port description.
+        for token in tokens.iter() {
+            if token.pos.range.start.line == port_line {
+                if let Some(comments) = &token.comments {
+                    if let Some(trailing) = &comments.trailing {
+                        return trailing.value.trim().to_string();
+                    }
+                }
+            }
+        }
+    }
+
+    // Check the identifier token's leading comments for a solo comment
     //    on the line immediately before the port declaration.
     if let Some(comments) = &ident_token.comments {
         if let Some(leading) = comments.leading.last() {
@@ -124,13 +144,15 @@ fn find_port_description(tokens: &[Token], ident_token_id: vhdl_lang::TokenId) -
         }
     }
 
-    // 2) Scan the token list for a semicolon on the same line that has a
-    //    trailing comment — this is the same-line port description.
-    for token in tokens.iter() {
-        if token.pos.range.start.line == port_line {
-            if let Some(comments) = &token.comments {
-                if let Some(trailing) = &comments.trailing {
-                    return trailing.value.trim().to_string();
+    if ! priority_trailing {
+        // Scan the token list for a semicolon on the same line that has a
+        //    trailing comment — this is the same-line port description.
+        for token in tokens.iter() {
+            if token.pos.range.start.line == port_line {
+                if let Some(comments) = &token.comments {
+                    if let Some(trailing) = &comments.trailing {
+                        return trailing.value.trim().to_string();
+                    }
                 }
             }
         }
@@ -140,11 +162,13 @@ fn find_port_description(tokens: &[Token], ident_token_id: vhdl_lang::TokenId) -
 }
 
 #[cfg_attr(target_arch = "wasm32", wasm_func)]
-fn get_port_list(id: &[u8]) -> Result<Vec<u8>, String> {
+fn get_port_list(id: &[u8], comment_priority: &[u8]) -> Result<Vec<u8>, String> {
     let id = decode_typst_arg_id(id)?;
+    let priority_trailing = decode_typst_arg(comment_priority)? == "trailing";
+
     let designfile = get_parsed(id)?;
 
-    let portlist = get_port_list_from_design(designfile)?;
+    let portlist = get_port_list_from_design(designfile, priority_trailing)?;
 
     encode_typst_return(&portlist)
 }
@@ -168,7 +192,7 @@ mod tests {
     #[test]
     fn test_port_descriptions() {
         let design = parse_test_file();
-        let ports = get_port_list_from_design(design).unwrap();
+        let ports = get_port_list_from_design(design, true).unwrap();
 
         // Ports with same-line comments
         assert_eq!(ports[0].name, "clock");
