@@ -1,0 +1,331 @@
+use serde::{Deserialize, Serialize};
+use std::default::Default;
+use vhdl_lang::Token;
+use vhdl_lang::ast::ConcurrentStatement::{Block, CaseGenerate, ForGenerate, IfGenerate, Process};
+use vhdl_lang::ast::Designator::Identifier;
+use vhdl_lang::ast::SequentialStatement::{Case, If, Loop, SignalAssignment, VariableAssignment};
+use vhdl_lang::ast::Waveform::Elements;
+use vhdl_lang::ast::{AnyDesignUnit, AnySecondaryUnit, AssignmentRightHand, Choice, Name, Target};
+use vhdl_lang::ast::{DesignFile, LabeledConcurrentStatement, LabeledSequentialStatement};
+
+#[derive(Serialize, Default, Debug)]
+pub struct FSMDescription {
+    pub default_state: String,
+    pub states: Vec<FSMState>,
+}
+
+#[derive(Serialize, Debug)]
+pub struct FSMState {
+    pub name: String,
+    pub description: String,
+    pub transitions: Vec<FSMTransition>,
+}
+
+#[derive(Serialize, Clone, Debug)]
+pub struct FSMTransition {
+    pub destination: String,
+    pub condition: String,
+    pub description: String,
+}
+
+#[derive(Deserialize)]
+pub struct FSMConfig {
+    pub read_variable_name: String,
+    pub write_variable_name: String,
+}
+
+// look for a state machine in a design file
+pub fn get_fsm(design: DesignFile, config: &FSMConfig) -> Result<FSMDescription, String> {
+    let mut fsm_description = FSMDescription::default();
+
+    for (tokens, design_unit) in &design.design_units {
+        if let AnyDesignUnit::Secondary(AnySecondaryUnit::Architecture(architecture)) = design_unit
+        {
+            process_concurrent_statements(
+                tokens,
+                &architecture.statements,
+                config,
+                &mut fsm_description,
+            );
+        };
+    }
+
+    if fsm_description.states.len() == 0 {
+        Err("state machine not found".to_owned())
+    } else {
+        Ok(fsm_description)
+    }
+}
+
+// go through concurrent statements, looking for a process
+fn process_concurrent_statements(
+    tokens: &Vec<Token>,
+    statements: &Vec<LabeledConcurrentStatement>,
+    config: &FSMConfig,
+    fsm_description: &mut FSMDescription,
+) {
+    for statement in statements {
+        match &statement.statement.item {
+            // for every concurrent statement holding other concurrent statements, go through them
+            Block(block_statement) => {
+                process_concurrent_statements(
+                    tokens,
+                    &block_statement.statements,
+                    config,
+                    fsm_description,
+                );
+            }
+
+            ForGenerate(for_generate_statement) => {
+                process_concurrent_statements(
+                    tokens,
+                    &for_generate_statement.body.statements,
+                    config,
+                    fsm_description,
+                );
+            }
+
+            IfGenerate(if_generate_statement) => {
+                for conditional in &if_generate_statement.conds.conditionals {
+                    process_concurrent_statements(
+                        tokens,
+                        &conditional.item.statements,
+                        config,
+                        fsm_description,
+                    );
+                }
+                if let Some(body) = &if_generate_statement.conds.else_item {
+                    process_concurrent_statements(
+                        tokens,
+                        &body.0.statements,
+                        config,
+                        fsm_description,
+                    );
+                }
+            }
+
+            CaseGenerate(case_generate_statement) => {
+                for alternative in &case_generate_statement.sels.alternatives {
+                    process_concurrent_statements(
+                        tokens,
+                        &alternative.item.statements,
+                        config,
+                        fsm_description,
+                    );
+                }
+            }
+
+            // we found a process. We can go through its sequential lines
+            Process(process_statement) => {
+                find_case(
+                    tokens,
+                    &process_statement.statements,
+                    config,
+                    fsm_description,
+                );
+            }
+
+            _ => {}
+        }
+    }
+}
+
+// go through sequential statements, looking for a FSM in a case statement
+fn find_case(
+    tokens: &Vec<Token>,
+    statements: &Vec<LabeledSequentialStatement>,
+    config: &FSMConfig,
+    fsm_description: &mut FSMDescription,
+) {
+    for statement in statements {
+        if let Case(case_statement) = &statement.statement.item {
+            if case_statement.expression.to_string() == config.read_variable_name {
+                // go through each case
+                for alternative in &case_statement.alternatives {
+                    // look for transitions
+                    let mut transitions: Vec<FSMTransition> = Vec::new();
+                    find_transitions(
+                        tokens,
+                        &alternative.item,
+                        config,
+                        "".to_owned(),
+                        &mut transitions,
+                    );
+
+                    // go through the choices
+                    for choice in &alternative.choices {
+                        match &choice.item {
+                            Choice::Expression(expression) => {
+                                fsm_description.states.push(FSMState {
+                                    name: expression.to_string(),
+                                    description: String::new(),
+                                    transitions: transitions.clone(),
+                                })
+                            }
+                            Choice::Others => {
+                                // there shouldn't be anything more than a jump to the reset state in here
+                                if let Some(transition) = transitions.get(0) {
+                                    fsm_description.default_state = transition.destination.clone();
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// go through sequential statements and look for transitions
+fn find_transitions(
+    tokens: &Vec<Token>,
+    statements: &Vec<LabeledSequentialStatement>,
+    config: &FSMConfig,
+    condition: String,
+    transitions: &mut Vec<FSMTransition>,
+) {
+    for statement in statements {
+        match &statement.statement.item {
+            VariableAssignment(variable_assignment) => {
+                if let Target::Name(Name::Designator(name_designator)) =
+                    &variable_assignment.target.item
+                {
+                    if let Identifier(symbol) = &name_designator.item {
+                        if symbol.name_utf8() == config.write_variable_name {
+                            // we are assigning to the correct variable
+                            if let AssignmentRightHand::Simple(expression) =
+                                &variable_assignment.rhs
+                            {
+                                let target = expression.item.to_string();
+
+                                transitions.push(FSMTransition {
+                                    destination: target,
+                                    condition: condition.clone(),
+                                    description: String::new(),
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+
+            SignalAssignment(signal_assignment) => {
+                if let Target::Name(Name::Designator(name_designator)) =
+                    &signal_assignment.target.item
+                {
+                    if let Identifier(symbol) = &name_designator.item {
+                        if symbol.name_utf8() == config.write_variable_name {
+                            // we are assigning to the correct variable
+                            if let AssignmentRightHand::Simple(Elements(elements)) =
+                                &signal_assignment.rhs
+                            {
+                                if let Some(element) = elements.get(0) {
+                                    // there shouldn't be more than one waveform in synthesized VHDL. We'll read only the first one
+                                    let target = element.value.item.to_string();
+
+                                    transitions.push(FSMTransition {
+                                        destination: target,
+                                        condition: condition.clone(),
+                                        description: String::new(),
+                                    });
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            If(if_statement) => {
+                // go through each if/elsif
+                for conditional in &if_statement.conds.conditionals {
+                    find_transitions(
+                        tokens,
+                        &conditional.item,
+                        config,
+                        conditional.condition.item.to_string(),
+                        transitions,
+                    );
+                }
+                // and the else branch
+                if let Some(else_statements) = &if_statement.conds.else_item {
+                    find_transitions(
+                        tokens,
+                        &else_statements.0,
+                        config,
+                        condition.clone(),
+                        transitions,
+                    );
+                }
+            }
+
+            Case(case_statement) => {
+                // generate the beginning of the condition for each case
+                let condition_begin = case_statement.expression.item.to_string();
+
+                for alternative in &case_statement.alternatives {
+                    // build the condition as a string
+                    let choices: Vec<String> = alternative
+                        .choices
+                        .iter()
+                        .map(|c| c.item.to_string())
+                        .collect();
+                    let case_condition = format!("{} = {}", condition_begin, choices.join(" | "));
+
+                    // go through the statements
+                    find_transitions(
+                        tokens,
+                        &alternative.item,
+                        config,
+                        case_condition,
+                        transitions,
+                    );
+                }
+            }
+
+            Loop(loop_statement) => {
+                // in a loop, just go through the inner statements
+                find_transitions(
+                    tokens,
+                    &loop_statement.statements,
+                    config,
+                    condition.clone(),
+                    transitions,
+                );
+            }
+            _ => {}
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::Path;
+    use vhdl_lang::{Source, VHDLParser, VHDLStandard};
+
+    fn parse_test_file() -> DesignFile {
+        let contents = std::fs::read_to_string("test/test.vhd").unwrap();
+        let parser = VHDLParser::new(VHDLStandard::VHDL2008);
+        let mut diagnostics = Vec::new();
+        parser.parse_design_source(
+            &Source::inline(Path::new("test.vhd"), &contents),
+            &mut diagnostics,
+        )
+    }
+
+    #[test]
+    fn test_fsm_description() {
+        let design = parse_test_file();
+        let fsm = get_fsm(
+            design,
+            &FSMConfig {
+                read_variable_name: "fsm".to_owned(),
+                write_variable_name: "fsm".to_owned(),
+            },
+        )
+        .unwrap();
+
+        println!("{:?}", fsm)
+    }
+}
