@@ -27,76 +27,78 @@ pub struct PortEntry {
 /// detected. If both a trailing and a leading comments are found, only one will
 /// be retained. If priority_trailing is true, the trailing comment will be used,
 /// and if failse, the leading comment.
-pub fn get_port_list_from_design(design: DesignFile, priority_trailing: bool) -> Result<Vec<PortEntry>, String> {
+pub fn get_port_list_from_design(
+    design: DesignFile,
+    priority_trailing: bool,
+) -> Result<Vec<PortEntry>, String> {
     // Walk the design file looking for entity declarations
     for (tokens, design_unit) in &design.design_units {
-        let entity_decl = match design_unit {
-            AnyDesignUnit::Primary(AnyPrimaryUnit::Entity(entity)) => entity,
-            _ => continue,
-        };
+        if let AnyDesignUnit::Primary(AnyPrimaryUnit::Entity(entity_decl)) = design_unit {
+            // Look for the port clause
+            if let Some(port_list) = &entity_decl.port_clause {
+                // loop through each port and fill up an array with entries
+                let mut entries: Vec<PortEntry> = Vec::new();
 
-        // Look for the port clause
-        if let Some(port_list) = &entity_decl.port_clause {
-            // loop through each port and fill up an array with entries
-            let mut entries: Vec<PortEntry> = Vec::new();
+                for port in &port_list.items {
+                    match port {
+                        InterfaceDeclaration::Object(obj_decl) => {
+                            // Get mode (direction) and type from the mode indication
+                            let (mode_str, type_str, constraint_str) = match &obj_decl.mode {
+                                ModeIndication::Simple(simple) => {
+                                    let mode = simple
+                                        .mode
+                                        .as_ref()
+                                        .map(|m| m.item.to_string())
+                                        .unwrap_or_else(|| "in".to_string()); // default mode is "in"
+                                    let typ = simple.subtype_indication.type_mark.to_string();
+                                    let constraint = match &simple.subtype_indication.constraint {
+                                        Some(constraint) => constraint.to_string(),
+                                        None => String::new(),
+                                    };
+                                    (mode, typ, constraint)
+                                }
+                                ModeIndication::View(view) => {
+                                    let typ = view.name.to_string();
+                                    ("view".to_string(), typ, String::new())
+                                }
+                            };
 
-            for port in &port_list.items {
-                match port {
-                    InterfaceDeclaration::Object(obj_decl) => {
-                        // Get mode (direction) and type from the mode indication
-                        let (mode_str, type_str, constraint_str) = match &obj_decl.mode {
-                            ModeIndication::Simple(simple) => {
-                                let mode = simple
-                                    .mode
-                                    .as_ref()
-                                    .map(|m| m.item.to_string())
-                                    .unwrap_or_else(|| "in".to_string()); // default mode is "in"
-                                let typ = simple.subtype_indication.type_mark.to_string();
-                                let constraint = match &simple.subtype_indication.constraint {
-                                    Some(constraint) => constraint.to_string(),
-                                    None => String::new(),
-                                };
-                                (mode, typ, constraint)
+                            for id in &obj_decl.idents {
+                                let name = id.tree.item.name_utf8();
+                                let description =
+                                    find_port_description(tokens, id.tree.token, priority_trailing);
+                                entries.push(PortEntry {
+                                    name: name,
+                                    mode: mode_str.clone(),
+                                    port_type: type_str.clone(),
+                                    constraint: constraint_str.clone(),
+                                    description,
+                                });
                             }
-                            ModeIndication::View(view) => {
-                                let typ = view.name.to_string();
-                                ("view".to_string(), typ, String::new())
+                        }
+                        InterfaceDeclaration::File(file_decl) => {
+                            for id in &file_decl.idents {
+                                let name = id.tree.item.name_utf8();
+                                let typ = file_decl.subtype_indication.to_string();
+                                let description =
+                                    find_port_description(tokens, id.tree.token, priority_trailing);
+                                entries.push(PortEntry {
+                                    name: name,
+                                    mode: "file".to_owned(),
+                                    port_type: typ.clone(),
+                                    constraint: String::new(),
+                                    description,
+                                });
                             }
-                        };
-
-                        for id in &obj_decl.idents {
-                            let name = id.tree.item.name_utf8();
-                            let description = find_port_description(tokens, id.tree.token, priority_trailing);
-                            entries.push(PortEntry {
-                                name: name,
-                                mode: mode_str.clone(),
-                                port_type: type_str.clone(),
-                                constraint: constraint_str.clone(),
-                                description,
-                            });
                         }
+                        _ => {}
                     }
-                    InterfaceDeclaration::File(file_decl) => {
-                        for id in &file_decl.idents {
-                            let name = id.tree.item.name_utf8();
-                            let typ = file_decl.subtype_indication.to_string();
-                            let description = find_port_description(tokens, id.tree.token, priority_trailing);
-                            entries.push(PortEntry {
-                                name: name,
-                                mode: "file".to_owned(),
-                                port_type: typ.clone(),
-                                constraint: String::new(),
-                                description,
-                            });
-                        }
-                    }
-                    _ => {}
                 }
-            }
 
-            return Ok(entries);
-        } else {
-            return Ok(Vec::default());
+                return Ok(entries);
+            } else {
+                return Ok(Vec::default());
+            }
         }
     }
 
@@ -115,7 +117,11 @@ pub fn get_port_list_from_design(design: DesignFile, priority_trailing: bool) ->
 ///   comment on the **identifier** token.
 ///
 /// If no description is found, returns an empty string.
-fn find_port_description(tokens: &[Token], ident_token_id: vhdl_lang::TokenId, priority_trailing: bool) -> String {
+fn find_port_description(
+    tokens: &[Token],
+    ident_token_id: vhdl_lang::TokenId,
+    priority_trailing: bool,
+) -> String {
     let ident_token = tokens.index(ident_token_id);
     let port_line = ident_token.pos.range.start.line;
 
@@ -144,7 +150,7 @@ fn find_port_description(tokens: &[Token], ident_token_id: vhdl_lang::TokenId, p
         }
     }
 
-    if ! priority_trailing {
+    if !priority_trailing {
         // Scan the token list for a semicolon on the same line that has a
         //    trailing comment — this is the same-line port description.
         for token in tokens.iter() {
@@ -220,6 +226,5 @@ mod tests {
 
         assert_eq!(ports[7].name, "data_out");
         assert_eq!(ports[7].description, "data out");
-
     }
 }
