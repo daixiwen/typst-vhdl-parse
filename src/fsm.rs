@@ -9,7 +9,7 @@ use vhdl_lang::ast::{AnyDesignUnit, AnySecondaryUnit, AssignmentRightHand, Choic
 use vhdl_lang::ast::{DesignFile, LabeledConcurrentStatement, LabeledSequentialStatement};
 
 use crate::parse_store::get_parsed;
-use crate::{decode_typst_arg, decode_typst_arg_id, encode_typst_return};
+use crate::{decode_typst_arg_struct, decode_typst_arg_id, encode_typst_return};
 
 #[cfg(target_arch = "wasm32")]
 use wasm_minimal_protocol::wasm_func;
@@ -377,15 +377,11 @@ impl FSMDescription {
 #[cfg_attr(target_arch = "wasm32", wasm_func)]
 fn get_fsm_as_dot(id: &[u8], config_str: &[u8]) -> Result<Vec<u8>, String> {
     let id = decode_typst_arg_id(id)?;
-    let config = decode_typst_arg(config_str)?;
+    let config : FSMConfig = decode_typst_arg_struct(config_str)?;
 
     let designfile = get_parsed(id)?;
 
-    let get_config = FSMConfig {
-        read_variable_name: "fsm".to_owned(),
-        write_variable_name: "fsm".to_owned()
-    };
-    let fsm = get_fsm(designfile, &get_config)?;
+    let fsm = get_fsm(designfile, &config)?;
 
     encode_typst_return(&fsm.to_dot()?)
 }
