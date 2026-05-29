@@ -5,7 +5,7 @@ use vhdl_lang::ast::ConcurrentStatement::{Block, CaseGenerate, ForGenerate, IfGe
 use vhdl_lang::ast::Designator::Identifier;
 use vhdl_lang::ast::SequentialStatement::{Case, If, Loop, SignalAssignment, VariableAssignment};
 use vhdl_lang::ast::Waveform::Elements;
-use vhdl_lang::ast::{AnyDesignUnit, AnySecondaryUnit, AssignmentRightHand, Choice, Name, Target};
+use vhdl_lang::ast::{Alternative, AnyDesignUnit, AnySecondaryUnit, AssignmentRightHand, Choice, Name, Target};
 use vhdl_lang::ast::{DesignFile, LabeledConcurrentStatement, LabeledSequentialStatement};
 
 #[derive(Serialize, Default, Debug)]
@@ -175,9 +175,15 @@ fn find_case(
                             }
                         }
                     }
+                } else {
+                    // this is not the state machine, but the state machine could be in one of the cases
+                    for alternative in &case_statement.alternatives {
+                        find_case(tokens, &alternative.item, config, fsm_description);
+                    }
                 }
             },
             If(if_statement) => {
+                // explore every branch
 
                 for condition in &if_statement.conds.conditionals {
                     find_case(tokens,
@@ -191,6 +197,11 @@ fn find_case(
                         config,
                         fsm_description);
                 }
+            },
+            Loop(loop_statement) => {
+                // explore inside the loop
+
+                find_case(tokens, &loop_statement.statements, config, fsm_description);
             },
             _ => {
             }
