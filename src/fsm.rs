@@ -5,8 +5,17 @@ use vhdl_lang::ast::ConcurrentStatement::{Block, CaseGenerate, ForGenerate, IfGe
 use vhdl_lang::ast::Designator::Identifier;
 use vhdl_lang::ast::SequentialStatement::{Case, If, Loop, SignalAssignment, VariableAssignment};
 use vhdl_lang::ast::Waveform::Elements;
-use vhdl_lang::ast::{Alternative, AnyDesignUnit, AnySecondaryUnit, AssignmentRightHand, Choice, Name, Target};
+use vhdl_lang::ast::{AnyDesignUnit, AnySecondaryUnit, AssignmentRightHand, Choice, Name, Target};
 use vhdl_lang::ast::{DesignFile, LabeledConcurrentStatement, LabeledSequentialStatement};
+
+use crate::parse_store::get_parsed;
+use crate::{decode_typst_arg, decode_typst_arg_id, encode_typst_return};
+
+#[cfg(target_arch = "wasm32")]
+use wasm_minimal_protocol::wasm_func;
+
+#[cfg(target_arch = "wasm32")]
+wasm_minimal_protocol::initiate_protocol!();
 
 #[derive(Serialize, Default, Debug)]
 pub struct FSMDescription {
@@ -330,6 +339,57 @@ fn find_transitions(
     }
 }
 
+impl FSMDescription {
+
+    /// generate a dot description of the fsm
+    pub fn to_dot(&self) -> Result<String,String> {
+        let mut result = string_builder::Builder::default();
+
+        result.append("digraph {\n");
+
+        if self.default_state.len() > 0 {
+            result.append(format!("  node [shape=doublecircle]\n  {}\n  node [shape=circle]\n", self.default_state));
+        }
+
+        for state in &self.states {
+            for transition in &state.transitions {
+                if transition.condition.len() > 0 {
+                    result.append(format!(
+                        "  {} -> {}[label=\"{}\"]\n",
+                        state.name,
+                        transition.destination,
+                        transition.condition));
+                } else {
+                    result.append(format!(
+                        "  {} -> {}\n",
+                        state.name,
+                        transition.destination));
+                }
+            }
+        }
+        result.append("}\n");
+
+        result.string().map_err(|e| e.to_string())
+    }
+}
+
+
+#[cfg_attr(target_arch = "wasm32", wasm_func)]
+fn get_fsm_as_dot(id: &[u8], config_str: &[u8]) -> Result<Vec<u8>, String> {
+    let id = decode_typst_arg_id(id)?;
+    let config = decode_typst_arg(config_str)?;
+
+    let designfile = get_parsed(id)?;
+
+    let get_config = FSMConfig {
+        read_variable_name: "fsm".to_owned(),
+        write_variable_name: "fsm".to_owned()
+    };
+    let fsm = get_fsm(designfile, &get_config)?;
+
+    encode_typst_return(&fsm.to_dot()?)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -358,6 +418,28 @@ mod tests {
         )
         .unwrap();
 
-        println!("{:?}", fsm)
+        // check the returned structure
+        assert_eq!(fsm.default_state, "reset");
+        assert_eq!(fsm.states.len(), 4);
+        assert_eq!(fsm.states[0].name, "reset");
+        assert_eq!(fsm.states[0].transitions.len(), 1);
+        assert_eq!(fsm.states[0].transitions[0].destination, "idle");
+        assert_eq!(fsm.states[0].transitions[0].condition, "");
+        assert_eq!(fsm.states[1].name, "idle");
+        assert_eq!(fsm.states[1].transitions.len(), 1);
+        assert_eq!(fsm.states[1].transitions[0].destination, "read_input");
+        assert_eq!(fsm.states[1].transitions[0].condition, "input_b = '1'");
+        assert_eq!(fsm.states[2].name, "read_input");
+        assert_eq!(fsm.states[2].transitions.len(), 2);
+        assert_eq!(fsm.states[2].transitions[0].destination, "idle");
+        assert_eq!(fsm.states[2].transitions[0].condition, "input_d = '1'");
+        assert_eq!(fsm.states[2].transitions[1].destination, "write_output");
+        assert_eq!(fsm.states[2].transitions[1].condition, "data_in = std_logic_vector(value)");
+        assert_eq!(fsm.states[3].name, "write_output");
+        assert_eq!(fsm.states[3].transitions.len(), 1);
+        assert_eq!(fsm.states[3].transitions[0].destination, "idle");
+        assert_eq!(fsm.states[3].transitions[0].condition, "input_b = '0'");
+
+        println!("dot:\n{}",fsm.to_dot().unwrap());
     }
 }

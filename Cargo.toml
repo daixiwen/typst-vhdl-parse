@@ -10,5 +10,6 @@ crate-type = ["cdylib"]
 ciborium = "0.2.2"
 lazy_static = "1.5.0"
 serde = { version = "1.0.228", features = ["derive"] }
+string-builder = "0.2.0"
 vhdl_lang = "0.86.0"
 wasm-minimal-protocol = "0.2.0"
