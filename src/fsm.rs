@@ -138,40 +138,61 @@ fn find_case(
     fsm_description: &mut FSMDescription,
 ) {
     for statement in statements {
-        if let Case(case_statement) = &statement.statement.item {
-            if case_statement.expression.to_string() == config.read_variable_name {
-                // go through each case
-                for alternative in &case_statement.alternatives {
-                    // look for transitions
-                    let mut transitions: Vec<FSMTransition> = Vec::new();
-                    find_transitions(
-                        tokens,
-                        &alternative.item,
-                        config,
-                        "".to_owned(),
-                        &mut transitions,
-                    );
+        match &statement.statement.item {
+            Case(case_statement) => {
+                if case_statement.expression.to_string() == config.read_variable_name {
+                    // we found the case with the state machine we are looking for....
 
-                    // go through the choices
-                    for choice in &alternative.choices {
-                        match &choice.item {
-                            Choice::Expression(expression) => {
-                                fsm_description.states.push(FSMState {
-                                    name: expression.to_string(),
-                                    description: String::new(),
-                                    transitions: transitions.clone(),
-                                })
-                            }
-                            Choice::Others => {
-                                // there shouldn't be anything more than a jump to the reset state in here
-                                if let Some(transition) = transitions.get(0) {
-                                    fsm_description.default_state = transition.destination.clone();
+                    // go through each case
+                    for alternative in &case_statement.alternatives {
+                        // look for transitions
+                        let mut transitions: Vec<FSMTransition> = Vec::new();
+                        find_transitions(
+                            tokens,
+                            &alternative.item,
+                            config,
+                            "".to_owned(),
+                            &mut transitions,
+                        );
+
+                        // go through the choices
+                        for choice in &alternative.choices {
+                            match &choice.item {
+                                Choice::Expression(expression) => {
+                                    fsm_description.states.push(FSMState {
+                                        name: expression.to_string(),
+                                        description: String::new(),
+                                        transitions: transitions.clone(),
+                                    })
                                 }
+                                Choice::Others => {
+                                    // there shouldn't be anything more than a jump to the reset state in here
+                                    if let Some(transition) = transitions.get(0) {
+                                        fsm_description.default_state = transition.destination.clone();
+                                    }
+                                }
+                                _ => {}
                             }
-                            _ => {}
                         }
                     }
                 }
+            },
+            If(if_statement) => {
+
+                for condition in &if_statement.conds.conditionals {
+                    find_case(tokens,
+                        &condition.item,
+                        config,
+                        fsm_description);
+                }
+                if let Some(else_condition) = &if_statement.conds.else_item {
+                    find_case(tokens,
+                        &else_condition.0,
+                        config,
+                        fsm_description);
+                }
+            },
+            _ => {
             }
         }
     }
