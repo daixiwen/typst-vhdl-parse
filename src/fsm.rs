@@ -406,6 +406,18 @@ fn get_fsm_as_dot(id: &[u8], config_str: &[u8]) -> Result<Vec<u8>, String> {
     encode_typst_return(&fsm.to_dot()?)
 }
 
+#[cfg_attr(target_arch = "wasm32", wasm_func)]
+fn get_fsm_as_struct(id: &[u8], config_str: &[u8]) -> Result<Vec<u8>, String> {
+    let id = decode_typst_arg_id(id)?;
+    let config : FSMConfig = decode_typst_arg_struct(config_str)?;
+
+    let designfile = get_parsed(id)?;
+
+    let fsm = get_fsm(designfile, &config)?;
+
+    encode_typst_return(&fsm)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
