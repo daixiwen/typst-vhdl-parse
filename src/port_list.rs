@@ -1,7 +1,6 @@
 use serde::Serialize;
 use vhdl_lang::ast::DesignFile;
 use vhdl_lang::ast::{AnyDesignUnit, AnyPrimaryUnit, InterfaceDeclaration, ModeIndication};
-use vhdl_lang::{Token, TokenAccess};
 
 #[cfg(target_arch = "wasm32")]
 use wasm_minimal_protocol::wasm_func;
@@ -18,7 +17,7 @@ pub struct PortEntry {
     pub mode: String,
     pub port_type: String,
     pub constraint: String,
-    pub description: String,
+    pub description: Option<String>,
 }
 
 /// go through the design file, find the first entiry and extracts its port list.
@@ -66,7 +65,7 @@ pub fn get_port_list_from_design(
                             for id in &obj_decl.idents {
                                 let name = id.tree.item.name_utf8();
                                 let description =
-                                    find_port_description(tokens, id.tree.token, priority_trailing);
+                                    crate::comments::find_object_description(tokens, id.tree.token, priority_trailing);
                                 entries.push(PortEntry {
                                     name: name,
                                     mode: mode_str.clone(),
@@ -81,7 +80,7 @@ pub fn get_port_list_from_design(
                                 let name = id.tree.item.name_utf8();
                                 let typ = file_decl.subtype_indication.to_string();
                                 let description =
-                                    find_port_description(tokens, id.tree.token, priority_trailing);
+                                    crate::comments::find_object_description(tokens, id.tree.token, priority_trailing);
                                 entries.push(PortEntry {
                                     name: name,
                                     mode: "file".to_owned(),
@@ -103,68 +102,6 @@ pub fn get_port_list_from_design(
     }
 
     return Err("no entity found in file".to_owned());
-}
-
-/// Find the description (comment) associated with a port declaration by inspecting
-/// the comments attached to tokens in the token stream.
-///
-/// The vhdl_lang tokenizer attaches comments to tokens:
-/// - `trailing`: a comment on the same line as the token, after it.
-///   Same-line port comments (e.g., `port_name : in std_logic; -- desc`) are attached
-///   as `trailing` on the **semicolon** token at the end of the line.
-/// - `leading`: comments on lines before the token. A solo comment on the line
-///   immediately before the port declaration is attached as the last `leading`
-///   comment on the **identifier** token.
-///
-/// If no description is found, returns an empty string.
-fn find_port_description(
-    tokens: &[Token],
-    ident_token_id: vhdl_lang::TokenId,
-    priority_trailing: bool,
-) -> String {
-    let ident_token = tokens.index(ident_token_id);
-    let port_line = ident_token.pos.range.start.line;
-
-    if priority_trailing {
-        // Scan the token list for a semicolon on the same line that has a
-        //    trailing comment — this is the same-line port description.
-        for token in tokens.iter() {
-            if token.pos.range.start.line == port_line {
-                if let Some(comments) = &token.comments {
-                    if let Some(trailing) = &comments.trailing {
-                        return trailing.value.trim().to_string();
-                    }
-                }
-            }
-        }
-    }
-
-    // Check the identifier token's leading comments for a solo comment
-    //    on the line immediately before the port declaration.
-    if let Some(comments) = &ident_token.comments {
-        if let Some(leading) = comments.leading.last() {
-            // A leading comment on the line just before the port
-            if leading.range.end.line + 1 == port_line {
-                return leading.value.trim().to_string();
-            }
-        }
-    }
-
-    if !priority_trailing {
-        // Scan the token list for a semicolon on the same line that has a
-        //    trailing comment — this is the same-line port description.
-        for token in tokens.iter() {
-            if token.pos.range.start.line == port_line {
-                if let Some(comments) = &token.comments {
-                    if let Some(trailing) = &comments.trailing {
-                        return trailing.value.trim().to_string();
-                    }
-                }
-            }
-        }
-    }
-
-    String::new()
 }
 
 #[cfg_attr(target_arch = "wasm32", wasm_func)]
@@ -202,29 +139,29 @@ mod tests {
 
         // Ports with same-line comments
         assert_eq!(ports[0].name, "clock");
-        assert_eq!(ports[0].description, "main clock");
+        assert_eq!(ports[0].description, Some("main clock".to_owned()));
 
         assert_eq!(ports[1].name, "sreset");
-        assert_eq!(ports[1].description, "main reset, synchronous, active high");
+        assert_eq!(ports[1].description, Some("main reset, synchronous, active high".to_owned()));
 
         assert_eq!(ports[2].name, "output_a");
-        assert_eq!(ports[2].description, "a regular output");
+        assert_eq!(ports[2].description, Some("a regular output".to_owned()));
 
         // Port with a solo comment on the line before
         assert_eq!(ports[3].name, "input_b");
-        assert_eq!(ports[3].description, "one input");
+        assert_eq!(ports[3].description, Some("one input".to_owned()));
 
         // Ports without descriptions
         assert_eq!(ports[4].name, "output_c");
-        assert_eq!(ports[4].description, "another output");
+        assert_eq!(ports[4].description, Some("another output".to_owned()));
 
         assert_eq!(ports[5].name, "input_d");
-        assert_eq!(ports[5].description, "another input");
+        assert_eq!(ports[5].description, Some("another input".to_owned()));
 
         assert_eq!(ports[6].name, "data_in");
-        assert_eq!(ports[6].description, "");
+        assert_eq!(ports[6].description, None);
 
         assert_eq!(ports[7].name, "data_out");
-        assert_eq!(ports[7].description, "data out");
+        assert_eq!(ports[7].description, Some("data out".to_owned()));
     }
 }

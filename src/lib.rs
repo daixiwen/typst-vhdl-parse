@@ -1,6 +1,7 @@
 pub mod fsm;
 pub mod parse_store;
 pub mod port_list;
+pub mod comments;
 
 use serde::{Serialize, de::DeserializeOwned};
 
