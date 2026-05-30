@@ -373,18 +373,18 @@ impl FSMDescription {
 
         for state in &self.states {
             for transition in &state.transitions {
-                if transition.condition.len() > 0 {
-                    result.append(format!(
-                        "  {} -> {}[label=\"{}\"]\n",
-                        state.name,
-                        transition.destination,
-                        transition.condition));
+                let label_command = if let Some(description) = &transition.description {
+                    format!("[label=\"{}\"]", description)
+                } else if transition.condition.len() > 0 {
+                    format!("[label=\"{}\"]", transition.condition)
                 } else {
-                    result.append(format!(
-                        "  {} -> {}\n",
-                        state.name,
-                        transition.destination));
-                }
+                    String::new()
+                };
+                result.append(format!(
+                    "  {} -> {}{}\n",
+                    state.name,
+                    transition.destination,
+                    label_command));
             }
         }
         result.append("}\n");
