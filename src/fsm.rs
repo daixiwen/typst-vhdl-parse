@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::default::Default;
-use vhdl_lang::Token;
+use vhdl_lang::{HasTokenSpan, Token, TokenId};
 use vhdl_lang::ast::ConcurrentStatement::{Block, CaseGenerate, ForGenerate, IfGenerate, Process};
 use vhdl_lang::ast::Designator::Identifier;
 use vhdl_lang::ast::SequentialStatement::{Case, If, Loop, SignalAssignment, VariableAssignment};
@@ -26,7 +26,7 @@ pub struct FSMDescription {
 #[derive(Serialize, Debug)]
 pub struct FSMState {
     pub name: String,
-    pub description: String,
+    pub description: Option<String>,
     pub transitions: Vec<FSMTransition>,
 }
 
@@ -34,7 +34,7 @@ pub struct FSMState {
 pub struct FSMTransition {
     pub destination: String,
     pub condition: String,
-    pub description: String,
+    pub description: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -161,8 +161,11 @@ fn find_case(
                             &alternative.item,
                             config,
                             "".to_owned(),
+                            alternative.item.first().map(|statement| statement.get_start_token()),
                             &mut transitions,
                         );
+
+                        let description = crate::comments::find_object_description(tokens, alternative.get_start_token(), true, false);
 
                         // go through the choices
                         for choice in &alternative.choices {
@@ -170,7 +173,7 @@ fn find_case(
                                 Choice::Expression(expression) => {
                                     fsm_description.states.push(FSMState {
                                         name: expression.to_string(),
-                                        description: String::new(),
+                                        description: description.clone(),
                                         transitions: transitions.clone(),
                                     })
                                 }
@@ -224,6 +227,7 @@ fn find_transitions(
     statements: &Vec<LabeledSequentialStatement>,
     config: &FSMConfig,
     condition: String,
+    condition_token: Option<TokenId>,
     transitions: &mut Vec<FSMTransition>,
 ) {
     for statement in statements {
@@ -240,10 +244,16 @@ fn find_transitions(
                             {
                                 let target = expression.item.to_string();
 
+                                let description = if let Some(tokenid) = condition_token {
+                                    crate::comments::find_object_description(tokens, tokenid, true, false)
+                                } else {
+                                    None
+                                };
+
                                 transitions.push(FSMTransition {
                                     destination: target,
                                     condition: condition.clone(),
-                                    description: String::new(),
+                                    description: description,
                                 });
                             }
                         }
@@ -265,10 +275,16 @@ fn find_transitions(
                                     // there shouldn't be more than one waveform in synthesized VHDL. We'll read only the first one
                                     let target = element.value.item.to_string();
 
+                                    let description = if let Some(tokenid) = condition_token {
+                                        crate::comments::find_object_description(tokens, tokenid, true, false)
+                                    } else {
+                                        None
+                                    };
+
                                     transitions.push(FSMTransition {
                                         destination: target,
                                         condition: condition.clone(),
-                                        description: String::new(),
+                                        description: description,
                                     });
                                 }
                             }
@@ -285,6 +301,7 @@ fn find_transitions(
                         &conditional.item,
                         config,
                         conditional.condition.item.to_string(),
+                        Some(conditional.condition.get_start_token()),
                         transitions,
                     );
                 }
@@ -295,6 +312,7 @@ fn find_transitions(
                         &else_statements.0,
                         config,
                         condition.clone(),
+                        Some(else_statements.1),
                         transitions,
                     );
                 }
@@ -319,6 +337,7 @@ fn find_transitions(
                         &alternative.item,
                         config,
                         case_condition,
+                        Some(alternative.get_start_token()),
                         transitions,
                     );
                 }
@@ -331,6 +350,7 @@ fn find_transitions(
                     &loop_statement.statements,
                     config,
                     condition.clone(),
+                    condition_token,
                     transitions,
                 );
             }
@@ -418,23 +438,35 @@ mod tests {
         assert_eq!(fsm.default_state, "reset");
         assert_eq!(fsm.states.len(), 4);
         assert_eq!(fsm.states[0].name, "reset");
+        assert_eq!(fsm.states[0].description, Some("start and reset state".to_owned()));
         assert_eq!(fsm.states[0].transitions.len(), 1);
         assert_eq!(fsm.states[0].transitions[0].destination, "idle");
         assert_eq!(fsm.states[0].transitions[0].condition, "");
+        assert_eq!(fsm.states[0].transitions[0].description, Some("out of reset".to_owned()));
         assert_eq!(fsm.states[1].name, "idle");
+        assert_eq!(fsm.states[1].description, Some("normal state when nothing happens".to_owned()));
         assert_eq!(fsm.states[1].transitions.len(), 1);
         assert_eq!(fsm.states[1].transitions[0].destination, "read_input");
         assert_eq!(fsm.states[1].transitions[0].condition, "input_b = '1'");
+        assert_eq!(fsm.states[1].transitions[0].description, Some("new input".to_owned()));
         assert_eq!(fsm.states[2].name, "read_input");
+        assert_eq!(fsm.states[2].description, Some("waiting for input".to_owned()));
         assert_eq!(fsm.states[2].transitions.len(), 2);
         assert_eq!(fsm.states[2].transitions[0].destination, "idle");
         assert_eq!(fsm.states[2].transitions[0].condition, "input_d = '1'");
+        assert_eq!(fsm.states[2].transitions[0].description, None);
         assert_eq!(fsm.states[2].transitions[1].destination, "write_output");
         assert_eq!(fsm.states[2].transitions[1].condition, "data_in = std_logic_vector(value)");
+        assert_eq!(fsm.states[2].transitions[1].description, Some("correct input".to_owned()));
         assert_eq!(fsm.states[3].name, "write_output");
-        assert_eq!(fsm.states[3].transitions.len(), 1);
+        assert_eq!(fsm.states[3].description, Some("send output".to_owned()));
+        assert_eq!(fsm.states[3].transitions.len(), 2);
         assert_eq!(fsm.states[3].transitions[0].destination, "idle");
         assert_eq!(fsm.states[3].transitions[0].condition, "input_b = '0'");
+        assert_eq!(fsm.states[3].transitions[0].description, None);
+        assert_eq!(fsm.states[3].transitions[1].destination, "write_output");
+        assert_eq!(fsm.states[3].transitions[1].condition, "");
+        assert_eq!(fsm.states[3].transitions[1].description, Some("stay".to_owned()));
 
         println!("dot:\n{}",fsm.to_dot().unwrap());
     }

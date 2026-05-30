@@ -65,7 +65,7 @@ pub fn get_port_list_from_design(
                             for id in &obj_decl.idents {
                                 let name = id.tree.item.name_utf8();
                                 let description =
-                                    crate::comments::find_object_description(tokens, id.tree.token, priority_trailing);
+                                    crate::comments::find_object_description(tokens, id.tree.token, priority_trailing, true);
                                 entries.push(PortEntry {
                                     name: name,
                                     mode: mode_str.clone(),
@@ -80,7 +80,7 @@ pub fn get_port_list_from_design(
                                 let name = id.tree.item.name_utf8();
                                 let typ = file_decl.subtype_indication.to_string();
                                 let description =
-                                    crate::comments::find_object_description(tokens, id.tree.token, priority_trailing);
+                                    crate::comments::find_object_description(tokens, id.tree.token, priority_trailing, true);
                                 entries.push(PortEntry {
                                     name: name,
                                     mode: "file".to_owned(),

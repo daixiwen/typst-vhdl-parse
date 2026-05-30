@@ -50,25 +50,32 @@ begin
       else
         
         case fsm is
+            -- start and reset state
           when reset =>
+              -- out of reset
             fsm <= idle;
 
-          when idle =>
-            if input_b = '1' then
+          when idle => -- normal state when nothing happens
+            if input_b = '1' then -- new input
               fsm <= read_input;
             end if;
 
-          when read_input =>
+          when read_input => -- waiting for input
             if input_d = '1' then
               fsm <= idle;
+
+                -- correct input
             elsif data_in = std_logic_vector(value) then
               fsm <= write_output;
             end if;
 
+            -- send output
           when write_output =>
             data_out <= std_logic_vector(value);
             if input_b = '0' then
               fsm <= idle;
+            else  -- stay
+              fsm <= write_output;
             end if;
 
           when others =>
