@@ -38,11 +38,29 @@ pub struct FSMTransition {
     pub description: Option<String>,
 }
 
+/// configuration to find the FSM and extract the information
 #[derive(Deserialize)]
 pub struct FSMConfig {
     pub read_variable_name: String,
     pub write_variable_name: String,
     pub comment_priority_trailing: bool
+}
+
+/// configuration for DOT file generation
+#[derive(Deserialize)]
+pub struct FSMDotConfig {
+    pub left_to_right: bool,
+    pub font_name: String,
+    pub state_shape: String,
+    pub state_background_color: String,
+    pub state_line_color: String,
+    pub state_text_color: String,
+    pub state_font_size: f64,
+    pub default_state_shape: String,
+    pub default_state_background_color: String,
+    pub default_state_line_color: String,
+    pub default_state_text_color: String,
+    pub default_state_font_size: f64,
 }
 
 // look for a state machine in a design file
@@ -364,13 +382,33 @@ fn find_transitions(
 impl FSMDescription {
 
     /// generate a dot description of the fsm
-    pub fn to_dot(&self) -> Result<String,String> {
+    pub fn to_dot(&self, config_dot: &FSMDotConfig) -> Result<String,String> {
         let mut result = string_builder::Builder::default();
 
-        result.append("digraph {\n");
+        result.append(format!("digraph {{\n  fontname=\"{}\"\n",
+            config_dot.font_name));
+        result.append(format!("  node [fontname=\"{}\", shape={}, style=filled, fillcolor=\"{}\", color=\"{}\", fontcolor=\"{}\", fontsize={}]\n",
+            config_dot.font_name, 
+            config_dot.state_shape, 
+            config_dot.state_background_color,
+            config_dot.state_line_color,
+            config_dot.state_text_color,
+            config_dot.state_font_size
+        ));
+
+        if config_dot.left_to_right {
+            result.append("  rankdir=LR\n")
+        }
 
         if self.default_state.len() > 0 {
-            result.append(format!("  node [shape=doublecircle]\n  {}\n  node [shape=circle]\n", self.default_state));
+            result.append(format!("  {} [shape={}, fillcolor=\"{}\", color=\"{}\", fontcolor=\"{}\", fontsize={}]\n",
+                self.default_state,
+                config_dot.default_state_shape, 
+                config_dot.default_state_background_color,
+                config_dot.default_state_line_color,
+                config_dot.default_state_text_color,
+                config_dot.default_state_font_size
+            ));
         }
 
         for state in &self.states {
@@ -397,15 +435,16 @@ impl FSMDescription {
 
 
 #[cfg_attr(target_arch = "wasm32", wasm_func)]
-fn get_fsm_as_dot(id: &[u8], config_str: &[u8]) -> Result<Vec<u8>, String> {
+fn get_fsm_as_dot(id: &[u8], config_str: &[u8], config_dot_str: &[u8]) -> Result<Vec<u8>, String> {
     let id = decode_typst_arg_id(id)?;
     let config : FSMConfig = decode_typst_arg_struct(config_str)?;
+    let config_dot: FSMDotConfig = decode_typst_arg_struct(config_dot_str)?;
 
     let designfile = get_parsed(id)?;
 
     let fsm = get_fsm(designfile, &config)?;
 
-    encode_typst_return(&fsm.to_dot()?)
+    encode_typst_return(&fsm.to_dot(&config_dot)?)
 }
 
 #[cfg_attr(target_arch = "wasm32", wasm_func)]
@@ -482,7 +521,5 @@ mod tests {
         assert_eq!(fsm.states[3].transitions[1].destination, "write_output");
         assert_eq!(fsm.states[3].transitions[1].condition, "");
         assert_eq!(fsm.states[3].transitions[1].description, Some("stay".to_owned()));
-
-        println!("dot:\n{}",fsm.to_dot().unwrap());
     }
 }

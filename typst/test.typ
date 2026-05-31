@@ -39,4 +39,22 @@ List of states:
 
 Diagram:
 
-#diagraph.render(vhdl_parse.fsm_dot(parsed_file, "fsm"))
+#let dotfile = vhdl_parse.fsm_dot(
+    parsed_file, "fsm", 
+    font_name: "DejaVu Sans",
+    state_shape: "septagon",
+    state_background_color: gray.lighten(50%),
+    state_line_color: green.darken(50%),
+    state_text_color: olive,
+    state_font_size: 12,
+    default_state_shape: "box",
+    default_state_background_color: red.lighten(50%),
+    default_state_line_color: red,
+    default_state_text_color: red.darken(50%),
+    default_state_font_size: 16,
+    )
+
+#diagraph.render(dotfile)
+
+//#dotfile
+
