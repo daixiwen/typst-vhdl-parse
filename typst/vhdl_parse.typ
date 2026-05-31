@@ -84,7 +84,8 @@
   // build config structure
   let fsmconfig = (
     "read_variable_name": read_variable_name,
-    "write_variable_name": write_variable_name
+    "write_variable_name": write_variable_name,
+    "comment_priority_trailing": (comment_priority == "trailing")
   )
 
   // call plugin
@@ -114,7 +115,8 @@
   // build config structure
   let fsmconfig = (
     "read_variable_name": read_variable_name,
-    "write_variable_name": write_variable_name
+    "write_variable_name": write_variable_name,
+    "comment_priority_trailing": (comment_priority == "trailing")
   )
 
   // call plugin

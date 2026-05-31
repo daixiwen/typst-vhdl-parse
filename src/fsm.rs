@@ -8,6 +8,7 @@ use vhdl_lang::ast::Waveform::Elements;
 use vhdl_lang::ast::{AnyDesignUnit, AnySecondaryUnit, AssignmentRightHand, Choice, Name, Target};
 use vhdl_lang::ast::{DesignFile, LabeledConcurrentStatement, LabeledSequentialStatement};
 
+use crate::comments::find_object_description;
 use crate::parse_store::get_parsed;
 use crate::{decode_typst_arg_struct, decode_typst_arg_id, encode_typst_return};
 
@@ -41,6 +42,7 @@ pub struct FSMTransition {
 pub struct FSMConfig {
     pub read_variable_name: String,
     pub write_variable_name: String,
+    pub comment_priority_trailing: bool
 }
 
 // look for a state machine in a design file
@@ -165,7 +167,7 @@ fn find_case(
                             &mut transitions,
                         );
 
-                        let description = crate::comments::find_object_description(tokens, alternative.get_start_token(), true, false);
+                        let description = find_object_description(tokens, alternative.get_start_token(), config.comment_priority_trailing, false);
 
                         // go through the choices
                         for choice in &alternative.choices {
@@ -245,7 +247,7 @@ fn find_transitions(
                                 let target = expression.item.to_string();
 
                                 let description = if let Some(tokenid) = condition_token {
-                                    crate::comments::find_object_description(tokens, tokenid, true, false)
+                                    find_object_description(tokens, tokenid, config.comment_priority_trailing, false)
                                 } else {
                                     None
                                 };
@@ -276,7 +278,7 @@ fn find_transitions(
                                     let target = element.value.item.to_string();
 
                                     let description = if let Some(tokenid) = condition_token {
-                                        crate::comments::find_object_description(tokens, tokenid, true, false)
+                                        find_object_description(tokens, tokenid, config.comment_priority_trailing, false)
                                     } else {
                                         None
                                     };
@@ -442,6 +444,7 @@ mod tests {
             &FSMConfig {
                 read_variable_name: "fsm".to_owned(),
                 write_variable_name: "fsm".to_owned(),
+                comment_priority_trailing: true
             },
         )
         .unwrap();
