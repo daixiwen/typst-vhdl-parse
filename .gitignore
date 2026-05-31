@@ -22,5 +22,7 @@ target
 
 
 # Added by cargo
-
 /target
+
+# compiled file
+*.wasm
