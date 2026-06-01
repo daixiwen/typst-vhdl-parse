@@ -61,6 +61,9 @@ pub struct FSMDotConfig {
     pub default_state_line_color: String,
     pub default_state_text_color: String,
     pub default_state_font_size: f64,
+    pub transition_line_color: String,
+    pub transition_text_color: String,
+    pub transition_font_size: f64,
 }
 
 // look for a state machine in a design file
@@ -394,6 +397,13 @@ impl FSMDescription {
             config_dot.state_line_color,
             config_dot.state_text_color,
             config_dot.state_font_size
+        ));
+
+        result.append(format!("  edge [fontname=\"{}\", color=\"{}\", fontcolor=\"{}\", fontsize={}]\n",
+            config_dot.font_name, 
+            config_dot.transition_line_color,
+            config_dot.transition_text_color,
+            config_dot.transition_font_size
         ));
 
         if config_dot.left_to_right {

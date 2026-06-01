@@ -110,8 +110,9 @@
 /// - default_state_line_color (String):       (optional) the line color for the default state
 /// - default_state_text_color (string):       (optional) the color of text for the default state
 /// - default_state_font_size (float):         (optional) the text size for the default state (in points)
-/// 
-/// colors are of the form #rrggbb or #rgb
+/// - transition_line_color (String):          (optional) the line color for the transitions
+/// - transition_text_color (string):          (optional) the color of text for the transitions
+/// - transition_font_size (float):            (optional) the text size for the transitions (in points)
 /// 
 /// -> a string with the DOT description 
 #let fsm_dot(parsed_file, 
@@ -129,7 +130,10 @@
             default_state_background_color: none,
             default_state_line_color: none,     
             default_state_text_color: none,     
-            default_state_font_size: none                  
+            default_state_font_size: none,                  
+            transition_line_color: none,     
+            transition_text_color: none,     
+            transition_font_size: none                  
             ) = {
   // arguments check and conversion
   assert(type(parsed_file) == dictionary, message: "parsed_file must be the return value from the parse() function")
@@ -171,6 +175,21 @@
     default_state_font_size = float(default_state_font_size)
   }
   assert(type(default_state_font_size) == float, message: "default_state_font_size needs to be a number")
+  if transition_line_color == none {
+    transition_line_color = state_line_color
+  }
+  assert(type(transition_line_color) == color, message: "transition_line_color needs to be a color")
+  if transition_text_color == none {
+    transition_text_color = state_text_color
+  }
+  assert(type(transition_text_color) == color, message: "transition_text_color needs to be a color")
+  if transition_font_size == none {
+    transition_font_size = state_font_size
+  }
+  if type(transition_font_size) == int {
+    transition_font_size = float(transition_font_size)
+  }
+  assert(type(transition_font_size) == float, message: "transition_font_size needs to be a number")
 
   // build config structures
   let fsmconfig = (
@@ -191,6 +210,9 @@
     "default_state_line_color":       default_state_line_color.to-hex(),
     "default_state_text_color":       default_state_text_color.to-hex(),
     "default_state_font_size":        default_state_font_size,
+    "transition_line_color":          transition_line_color.to-hex(),
+    "transition_text_color":          transition_text_color.to-hex(),
+    "transition_font_size":           transition_font_size,
   )
 
   // call plugin

@@ -52,6 +52,9 @@ Diagram:
     default_state_line_color: red,
     default_state_text_color: red.darken(50%),
     default_state_font_size: 16,
+    transition_line_color: blue.darken(30%),
+    transition_text_color: blue.darken(50%),
+    transition_font_size: 8,
     )
 
 #diagraph.render(dotfile)
