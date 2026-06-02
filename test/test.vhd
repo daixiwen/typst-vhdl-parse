@@ -11,15 +11,15 @@ entity test is
     value             : std_logic_vector(15 downto 0) := x"DEAD"
   );
   port (
-    clock             : in  std_logic; -- main clock
-    sreset            : in  std_logic; -- main reset, synchronous, active high
+    clock             : in  std_logic;        -- main clock
+    sreset            : in  std_logic := '0'; -- main reset, synchronous, active high
 
-    output_a          : out std_logic; -- a regular output
+    output_a          : out std_logic;        -- a regular output
       -- one input
     input_b           : in std_logic;
       -- one comment before, that will be ignored because we also have one on the same line as the port
-    output_c          : out std_logic;  -- another output
-    input_d           : in  std_logic;  -- another input
+    output_c          : out std_logic;        -- another output
+    input_d           : in  std_logic;        -- another input
     data_in           : in  std_logic_vector(15 downto 0);
       -- data_in had no comment
     data_out          : out  std_logic_vector(15 downto 0) -- data out

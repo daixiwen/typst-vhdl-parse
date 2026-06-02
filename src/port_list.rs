@@ -16,8 +16,9 @@ pub struct PortEntry {
     pub name: String,
     pub mode: String,
     pub port_type: String,
-    pub constraint: String,
+    pub constraint: Option<String>,
     pub description: Option<String>,
+    pub default_value: Option<String>,
 }
 
 /// go through the design file, find the first entiry and extracts its port list.
@@ -42,7 +43,7 @@ pub fn get_port_list_from_design(
                     match port {
                         InterfaceDeclaration::Object(obj_decl) => {
                             // Get mode (direction) and type from the mode indication
-                            let (mode_str, type_str, constraint_str) = match &obj_decl.mode {
+                            let (mode_str, type_str, constraint_str, default_value) = match &obj_decl.mode {
                                 ModeIndication::Simple(simple) => {
                                     let mode = simple
                                         .mode
@@ -50,15 +51,14 @@ pub fn get_port_list_from_design(
                                         .map(|m| m.item.to_string())
                                         .unwrap_or_else(|| "in".to_string()); // default mode is "in"
                                     let typ = simple.subtype_indication.type_mark.to_string();
-                                    let constraint = match &simple.subtype_indication.constraint {
-                                        Some(constraint) => constraint.to_string(),
-                                        None => String::new(),
-                                    };
-                                    (mode, typ, constraint)
+                                    let constraint = simple.subtype_indication.constraint.as_ref().map(|constraint| constraint.to_string());
+                                    let default_value = simple.expression.as_ref().map(|expression| expression.to_string());
+                                    (mode, typ, constraint, default_value)
                                 }
                                 ModeIndication::View(view) => {
                                     let typ = view.name.to_string();
-                                    ("view".to_string(), typ, String::new())
+                                    
+                                    ("view".to_string(), typ, None, None)
                                 }
                             };
 
@@ -72,6 +72,7 @@ pub fn get_port_list_from_design(
                                     port_type: type_str.clone(),
                                     constraint: constraint_str.clone(),
                                     description,
+                                    default_value: default_value.clone()
                                 });
                             }
                         }
@@ -85,8 +86,9 @@ pub fn get_port_list_from_design(
                                     name: name,
                                     mode: "file".to_owned(),
                                     port_type: typ.clone(),
-                                    constraint: String::new(),
+                                    constraint: None,
                                     description,
+                                    default_value: None
                                 });
                             }
                         }
