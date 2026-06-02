@@ -23,6 +23,18 @@ Messages from the parser:
     }
 )
 
+= Generics list
+
+#let generics = vhdl_parse.genericlist(parsed_file)
+
+#table(
+    columns: (auto, auto, auto, 1fr),
+    table.header([name],[type], [description], [default value]),
+    ..for entry in generics {
+        ( [#entry.name], [#{entry.generic_type}#{entry.constraint}], [#entry.description], [#entry.default_value])
+    }
+)
+
 = FSM 
 
 #let fsm = vhdl_parse.fsm(parsed_file,"fsm")

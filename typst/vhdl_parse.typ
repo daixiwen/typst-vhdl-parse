@@ -52,6 +52,29 @@
   return cbor(parsed_file.plugin.get_port_list(bytes(parsed_file.id), bytes(comment_priority)))
 }
 
+/// genericlist: returns the generics list from the first entity found in the parsed file
+///
+/// - parsed_file (struct):      The parsed filed object, as returned by parse() 
+/// - comment_priority (string): (optional) override the default comment priority, either "leading" or "trailing" 
+/// 
+/// -> an array of dictionaries, with in each item:
+///    - name (string):                   the port name
+///    - generic_type (string):           the type of the generic
+///    - constraint (string or none):     the type constraint, for example: "(15 downto 0)"
+///    - description (string or none):    a comment describing the port
+///    - default_value (string or none):  the default contents of the generic
+#let genericlist(parsed_file, comment_priority : none) = {
+  // arguments check and conversion
+  assert(type(parsed_file) == dictionary, message: "parsed_file must be the return value from the parse() function")
+  if comment_priority == none {
+    comment_priority = parsed_file.comment_priority
+  }
+  assert(("trailing", "leading").contains(comment_priority), message: "comment priority must be \"trailing\" or \"leading\"")
+
+  // call the plugin and return the results
+  return cbor(parsed_file.plugin.get_generic_list(bytes(parsed_file.id), bytes(comment_priority)))
+}
+
 /// fsm: returns information about a state machine found in the parsed file
 ///
 /// - parsed_file (struct):           The parsed filed object, as returned by parse() 
