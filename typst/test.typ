@@ -1,5 +1,6 @@
 #import "vhdl_parse.typ" as vhdl_parse;
 #import "@preview/diagraph:0.3.7"
+#import "@preview/elembic:1.1.0"
 
 = VHDL Parsing
 
@@ -35,9 +36,46 @@ Messages from the parser:
     }
 )
 
+#let generic-elem = elembic.element.declare(
+  "generic",
+  prefix: "eidel/fpga",
+  doc: "indicates a generic has been described",
+  display: it => raw(it.arg),
+  fields: (
+    elembic.field("arg", str, required: true),  // typed field for your argument
+  ),
+)
+
+
+Here I am describing the #generic-elem("flag") generic and here the #generic-elem("value") generic.
+
+#let check-generics(generic_list) = {
+    context{
+        let described_generic_list = elembic.query(generic-elem).map(it => elembic.fields(it).arg)
+        let detected_generic_list = generic_list.map(it => it.name)
+
+        for detected_generic in detected_generic_list {
+            if not described_generic_list.contains(detected_generic) {
+                text(fill:red, [ missing description for generic #raw(detected_generic)
+                
+                 ])
+            }
+        }
+        for described_generic in described_generic_list {
+            if not detected_generic_list.contains(described_generic) {
+                text(fill:red, [ description for non existing generic #raw(described_generic)
+                
+                 ])
+            }
+        }
+    }
+}
+
+#check-generics(generics)
+
 = FSM 
 
-#let fsm = vhdl_parse.fsm(parsed_file,"fsm")
+#let fsm = vhdl_parse.fsm(parsed_file,"fsm.state")
 
 List of states:
 
@@ -52,7 +90,7 @@ List of states:
 Diagram:
 
 #let dotfile = vhdl_parse.fsm_dot(
-    parsed_file, "fsm", 
+    parsed_file, "fsm.state", 
     font_name: "DejaVu Sans",
     state_shape: "septagon",
     state_background_color: gray.lighten(50%),

@@ -256,16 +256,42 @@ fn find_transitions(
     for statement in statements {
         match &statement.statement.item {
             VariableAssignment(variable_assignment) => {
-                if let Target::Name(Name::Designator(name_designator)) =
-                    &variable_assignment.target.item
+                if let Target::Name(name) =  &variable_assignment.target.item
                 {
-                    if let Identifier(symbol) = &name_designator.item {
-                        if symbol.name_utf8() == config.write_variable_name {
-                            // we are assigning to the correct variable
-                            if let AssignmentRightHand::Simple(expression) =
-                                &variable_assignment.rhs
-                            {
-                                let target = expression.item.to_string();
+                    if name.to_string() == config.write_variable_name {
+                        // we are assigning to the correct variable
+                        if let AssignmentRightHand::Simple(expression) =
+                            &variable_assignment.rhs
+                        {
+                            let target = expression.item.to_string();
+
+                            let description = if let Some(tokenid) = condition_token {
+                                find_object_description(tokens, tokenid, config.comment_priority_trailing, false)
+                            } else {
+                                None
+                            };
+
+                            transitions.push(FSMTransition {
+                                destination: target,
+                                condition: condition.clone(),
+                                description: description,
+                            });
+                        }
+                    }
+                }
+            }
+
+            SignalAssignment(signal_assignment) => {
+                if let Target::Name(name) =  &signal_assignment.target.item
+                {
+                    if name.to_string() == config.write_variable_name {
+                        // we are assigning to the correct variable
+                        if let AssignmentRightHand::Simple(Elements(elements)) =
+                            &signal_assignment.rhs
+                        {
+                            if let Some(element) = elements.get(0) {
+                                // there shouldn't be more than one waveform in synthesized VHDL. We'll read only the first one
+                                let target = element.value.item.to_string();
 
                                 let description = if let Some(tokenid) = condition_token {
                                     find_object_description(tokens, tokenid, config.comment_priority_trailing, false)
@@ -278,38 +304,6 @@ fn find_transitions(
                                     condition: condition.clone(),
                                     description: description,
                                 });
-                            }
-                        }
-                    }
-                }
-            }
-
-            SignalAssignment(signal_assignment) => {
-                if let Target::Name(Name::Designator(name_designator)) =
-                    &signal_assignment.target.item
-                {
-                    if let Identifier(symbol) = &name_designator.item {
-                        if symbol.name_utf8() == config.write_variable_name {
-                            // we are assigning to the correct variable
-                            if let AssignmentRightHand::Simple(Elements(elements)) =
-                                &signal_assignment.rhs
-                            {
-                                if let Some(element) = elements.get(0) {
-                                    // there shouldn't be more than one waveform in synthesized VHDL. We'll read only the first one
-                                    let target = element.value.item.to_string();
-
-                                    let description = if let Some(tokenid) = condition_token {
-                                        find_object_description(tokens, tokenid, config.comment_priority_trailing, false)
-                                    } else {
-                                        None
-                                    };
-
-                                    transitions.push(FSMTransition {
-                                        destination: target,
-                                        condition: condition.clone(),
-                                        description: description,
-                                    });
-                                }
                             }
                         }
                     }
@@ -491,8 +485,8 @@ mod tests {
         let fsm = get_fsm(
             design,
             &FSMConfig {
-                read_variable_name: "fsm".to_owned(),
-                write_variable_name: "fsm".to_owned(),
+                read_variable_name: "fsm.state".to_owned(),
+                write_variable_name: "fsm.state".to_owned(),
                 comment_priority_trailing: true
             },
         )
