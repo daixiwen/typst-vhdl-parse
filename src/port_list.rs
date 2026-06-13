@@ -107,11 +107,14 @@ pub fn get_port_list_from_design(
 }
 
 #[cfg_attr(target_arch = "wasm32", wasm_func)]
-fn get_port_list(id: &[u8], comment_priority: &[u8]) -> Result<Vec<u8>, String> {
+fn get_port_list(id: &[u8], file_name: &[u8], vhdl_standard: &[u8], contents: &[u8], comment_priority: &[u8]) -> Result<Vec<u8>, String> {
     let id = decode_typst_arg_id(id)?;
+    let file_name = decode_typst_arg(file_name)?;
+    let vhdl_standard = decode_typst_arg(vhdl_standard)?;
+    let contents = decode_typst_arg(contents)?;
     let priority_trailing = decode_typst_arg(comment_priority)? == "trailing";
 
-    let designfile = get_parsed(id)?;
+    let designfile = get_parsed(id, file_name, vhdl_standard, contents)?;
 
     let portlist = get_port_list_from_design(designfile, priority_trailing)?;
 

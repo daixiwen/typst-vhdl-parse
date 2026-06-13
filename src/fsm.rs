@@ -2,15 +2,14 @@ use serde::{Deserialize, Serialize};
 use std::default::Default;
 use vhdl_lang::{HasTokenSpan, Token, TokenId};
 use vhdl_lang::ast::ConcurrentStatement::{Block, CaseGenerate, ForGenerate, IfGenerate, Process};
-use vhdl_lang::ast::Designator::Identifier;
 use vhdl_lang::ast::SequentialStatement::{Case, If, Loop, SignalAssignment, VariableAssignment};
 use vhdl_lang::ast::Waveform::Elements;
-use vhdl_lang::ast::{AnyDesignUnit, AnySecondaryUnit, AssignmentRightHand, Choice, Name, Target};
+use vhdl_lang::ast::{AnyDesignUnit, AnySecondaryUnit, AssignmentRightHand, Choice, Target};
 use vhdl_lang::ast::{DesignFile, LabeledConcurrentStatement, LabeledSequentialStatement};
 
 use crate::comments::find_object_description;
 use crate::parse_store::get_parsed;
-use crate::{decode_typst_arg_struct, decode_typst_arg_id, encode_typst_return};
+use crate::{decode_typst_arg_struct, decode_typst_arg_id, encode_typst_return, decode_typst_arg};
 
 #[cfg(target_arch = "wasm32")]
 use wasm_minimal_protocol::wasm_func;
@@ -439,12 +438,15 @@ impl FSMDescription {
 
 
 #[cfg_attr(target_arch = "wasm32", wasm_func)]
-fn get_fsm_as_dot(id: &[u8], config_str: &[u8], config_dot_str: &[u8]) -> Result<Vec<u8>, String> {
+fn get_fsm_as_dot(id: &[u8], file_name: &[u8], vhdl_standard: &[u8], contents: &[u8], config_str: &[u8], config_dot_str: &[u8]) -> Result<Vec<u8>, String> {
     let id = decode_typst_arg_id(id)?;
+    let file_name = decode_typst_arg(file_name)?;
+    let vhdl_standard = decode_typst_arg(vhdl_standard)?;
+    let contents = decode_typst_arg(contents)?;
     let config : FSMConfig = decode_typst_arg_struct(config_str)?;
     let config_dot: FSMDotConfig = decode_typst_arg_struct(config_dot_str)?;
 
-    let designfile = get_parsed(id)?;
+    let designfile = get_parsed(id, file_name, vhdl_standard, contents)?;
 
     let fsm = get_fsm(designfile, &config)?;
 
@@ -452,11 +454,14 @@ fn get_fsm_as_dot(id: &[u8], config_str: &[u8], config_dot_str: &[u8]) -> Result
 }
 
 #[cfg_attr(target_arch = "wasm32", wasm_func)]
-fn get_fsm_as_struct(id: &[u8], config_str: &[u8]) -> Result<Vec<u8>, String> {
+fn get_fsm_as_struct(id: &[u8], file_name: &[u8], vhdl_standard: &[u8], contents: &[u8], config_str: &[u8]) -> Result<Vec<u8>, String> {
     let id = decode_typst_arg_id(id)?;
+    let file_name = decode_typst_arg(file_name)?;
+    let vhdl_standard = decode_typst_arg(vhdl_standard)?;
+    let contents = decode_typst_arg(contents)?;
     let config : FSMConfig = decode_typst_arg_struct(config_str)?;
 
-    let designfile = get_parsed(id)?;
+    let designfile = get_parsed(id, file_name, vhdl_standard, contents)?;
 
     let fsm = get_fsm(designfile, &config)?;
 

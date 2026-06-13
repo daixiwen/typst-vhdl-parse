@@ -25,6 +25,9 @@
     "plugin":           plug,
     "id":               result.id,
     "messages":         result.messages,
+    "orig_fname":       bytes(file_name),
+    "orig_vhdl":        bytes(vhdl_variant),
+    "orig_contents":    contents,
     "comment_priority": comment_priority
   )
 }
@@ -49,7 +52,12 @@
   assert(("trailing", "leading").contains(comment_priority), message: "comment priority must be \"trailing\" or \"leading\"")
 
   // call the plugin and return the results
-  return cbor(parsed_file.plugin.get_port_list(bytes(parsed_file.id), bytes(comment_priority)))
+  return cbor(parsed_file.plugin.get_port_list(
+    bytes(parsed_file.id), 
+    parsed_file.orig_fname, 
+    parsed_file.orig_vhdl, 
+    parsed_file.orig_contents, 
+    bytes(comment_priority)))
 }
 
 /// genericlist: returns the generics list from the first entity found in the parsed file
@@ -72,7 +80,12 @@
   assert(("trailing", "leading").contains(comment_priority), message: "comment priority must be \"trailing\" or \"leading\"")
 
   // call the plugin and return the results
-  return cbor(parsed_file.plugin.get_generic_list(bytes(parsed_file.id), bytes(comment_priority)))
+  return cbor(parsed_file.plugin.get_generic_list(
+    bytes(parsed_file.id), 
+    parsed_file.orig_fname, 
+    parsed_file.orig_vhdl, 
+    parsed_file.orig_contents, 
+    bytes(comment_priority)))
 }
 
 /// fsm: returns information about a state machine found in the parsed file
@@ -112,7 +125,12 @@
   )
 
   // call plugin
-  return cbor(parsed_file.plugin.get_fsm_as_struct(bytes(parsed_file.id), cbor.encode(fsmconfig)))
+  return cbor(parsed_file.plugin.get_fsm_as_struct(
+    bytes(parsed_file.id), 
+    parsed_file.orig_fname, 
+    parsed_file.orig_vhdl, 
+    parsed_file.orig_contents, 
+    cbor.encode(fsmconfig)))
 }
 
 /// fsm_dot: returns a description of an FDM in the DOT format, ready to be drawn by the diagraph package1
@@ -239,5 +257,11 @@
   )
 
   // call plugin
-  return cbor(parsed_file.plugin.get_fsm_as_dot(bytes(parsed_file.id), cbor.encode(fsmconfig), cbor.encode(fsmdotconfig)))
+  return cbor(parsed_file.plugin.get_fsm_as_dot(
+    bytes(parsed_file.id), 
+    parsed_file.orig_fname, 
+    parsed_file.orig_vhdl, 
+    parsed_file.orig_contents, 
+    cbor.encode(fsmconfig), 
+    cbor.encode(fsmdotconfig)))
 }
