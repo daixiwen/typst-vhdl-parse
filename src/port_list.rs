@@ -43,36 +43,48 @@ pub fn get_port_list_from_design(
                     match port {
                         InterfaceDeclaration::Object(obj_decl) => {
                             // Get mode (direction) and type from the mode indication
-                            let (mode_str, type_str, constraint_str, default_value) = match &obj_decl.mode {
-                                ModeIndication::Simple(simple) => {
-                                    let mode = simple
-                                        .mode
-                                        .as_ref()
-                                        .map(|m| m.item.to_string())
-                                        .unwrap_or_else(|| "in".to_string()); // default mode is "in"
-                                    let typ = simple.subtype_indication.type_mark.to_string();
-                                    let constraint = simple.subtype_indication.constraint.as_ref().map(|constraint| constraint.to_string());
-                                    let default_value = simple.expression.as_ref().map(|expression| expression.to_string());
-                                    (mode, typ, constraint, default_value)
-                                }
-                                ModeIndication::View(view) => {
-                                    let typ = view.name.to_string();
-                                    
-                                    ("view".to_string(), typ, None, None)
-                                }
-                            };
+                            let (mode_str, type_str, constraint_str, default_value) =
+                                match &obj_decl.mode {
+                                    ModeIndication::Simple(simple) => {
+                                        let mode = simple
+                                            .mode
+                                            .as_ref()
+                                            .map(|m| m.item.to_string())
+                                            .unwrap_or_else(|| "in".to_string()); // default mode is "in"
+                                        let typ = simple.subtype_indication.type_mark.to_string();
+                                        let constraint = simple
+                                            .subtype_indication
+                                            .constraint
+                                            .as_ref()
+                                            .map(|constraint| constraint.to_string());
+                                        let default_value = simple
+                                            .expression
+                                            .as_ref()
+                                            .map(|expression| expression.to_string());
+                                        (mode, typ, constraint, default_value)
+                                    }
+                                    ModeIndication::View(view) => {
+                                        let typ = view.name.to_string();
+
+                                        ("view".to_string(), typ, None, None)
+                                    }
+                                };
 
                             for id in &obj_decl.idents {
                                 let name = id.tree.item.name_utf8();
-                                let description =
-                                    crate::comments::find_object_description(tokens, id.tree.token, priority_trailing, true);
+                                let description = crate::comments::find_object_description(
+                                    tokens,
+                                    id.tree.token,
+                                    priority_trailing,
+                                    true,
+                                );
                                 entries.push(PortEntry {
                                     name: name,
                                     mode: mode_str.clone(),
                                     port_type: type_str.clone(),
                                     constraint: constraint_str.clone(),
                                     description,
-                                    default_value: default_value.clone()
+                                    default_value: default_value.clone(),
                                 });
                             }
                         }
@@ -80,15 +92,19 @@ pub fn get_port_list_from_design(
                             for id in &file_decl.idents {
                                 let name = id.tree.item.name_utf8();
                                 let typ = file_decl.subtype_indication.to_string();
-                                let description =
-                                    crate::comments::find_object_description(tokens, id.tree.token, priority_trailing, true);
+                                let description = crate::comments::find_object_description(
+                                    tokens,
+                                    id.tree.token,
+                                    priority_trailing,
+                                    true,
+                                );
                                 entries.push(PortEntry {
                                     name: name,
                                     mode: "file".to_owned(),
                                     port_type: typ.clone(),
                                     constraint: None,
                                     description,
-                                    default_value: None
+                                    default_value: None,
                                 });
                             }
                         }
@@ -107,7 +123,13 @@ pub fn get_port_list_from_design(
 }
 
 #[cfg_attr(target_arch = "wasm32", wasm_func)]
-fn get_port_list(id: &[u8], file_name: &[u8], vhdl_standard: &[u8], contents: &[u8], comment_priority: &[u8]) -> Result<Vec<u8>, String> {
+fn get_port_list(
+    id: &[u8],
+    file_name: &[u8],
+    vhdl_standard: &[u8],
+    contents: &[u8],
+    comment_priority: &[u8],
+) -> Result<Vec<u8>, String> {
     let id = decode_typst_arg_id(id)?;
     let file_name = decode_typst_arg(file_name)?;
     let vhdl_standard = decode_typst_arg(vhdl_standard)?;
@@ -147,7 +169,10 @@ mod tests {
         assert_eq!(ports[0].description, Some("main clock".to_owned()));
 
         assert_eq!(ports[1].name, "sreset");
-        assert_eq!(ports[1].description, Some("main reset, synchronous, active high".to_owned()));
+        assert_eq!(
+            ports[1].description,
+            Some("main reset, synchronous, active high".to_owned())
+        );
 
         assert_eq!(ports[2].name, "output_a");
         assert_eq!(ports[2].description, Some("a regular output".to_owned()));

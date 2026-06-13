@@ -1,8 +1,8 @@
+pub mod comments;
 pub mod fsm;
+pub mod generic_list;
 pub mod parse_store;
 pub mod port_list;
-pub mod generic_list;
-pub mod comments;
 
 use serde::{Serialize, de::DeserializeOwned};
 
@@ -20,7 +20,7 @@ pub fn decode_typst_arg_id(arg: &[u8]) -> Result<u64, String> {
 
 /// decode a typst argument from the bytes type to a struct
 pub fn decode_typst_arg_struct<T: DeserializeOwned>(arg: &[u8]) -> Result<T, String> {
-    let read_struct : T = ciborium::from_reader(arg).map_err(|e| e.to_string())?;
+    let read_struct: T = ciborium::from_reader(arg).map_err(|e| e.to_string())?;
 
     Ok(read_struct)
 }

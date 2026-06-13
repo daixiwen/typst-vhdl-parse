@@ -1,15 +1,15 @@
 use serde::{Deserialize, Serialize};
 use std::default::Default;
-use vhdl_lang::{HasTokenSpan, Token, TokenId};
 use vhdl_lang::ast::ConcurrentStatement::{Block, CaseGenerate, ForGenerate, IfGenerate, Process};
 use vhdl_lang::ast::SequentialStatement::{Case, If, Loop, SignalAssignment, VariableAssignment};
 use vhdl_lang::ast::Waveform::Elements;
 use vhdl_lang::ast::{AnyDesignUnit, AnySecondaryUnit, AssignmentRightHand, Choice, Target};
 use vhdl_lang::ast::{DesignFile, LabeledConcurrentStatement, LabeledSequentialStatement};
+use vhdl_lang::{HasTokenSpan, Token, TokenId};
 
 use crate::comments::find_object_description;
 use crate::parse_store::get_parsed;
-use crate::{decode_typst_arg_struct, decode_typst_arg_id, encode_typst_return, decode_typst_arg};
+use crate::{decode_typst_arg, decode_typst_arg_id, decode_typst_arg_struct, encode_typst_return};
 
 #[cfg(target_arch = "wasm32")]
 use wasm_minimal_protocol::wasm_func;
@@ -42,7 +42,7 @@ pub struct FSMTransition {
 pub struct FSMConfig {
     pub read_variable_name: String,
     pub write_variable_name: String,
-    pub comment_priority_trailing: bool
+    pub comment_priority_trailing: bool,
 }
 
 /// configuration for DOT file generation
@@ -183,11 +183,19 @@ fn find_case(
                             &alternative.item,
                             config,
                             "".to_owned(),
-                            alternative.item.first().map(|statement| statement.get_start_token()),
+                            alternative
+                                .item
+                                .first()
+                                .map(|statement| statement.get_start_token()),
                             &mut transitions,
                         );
 
-                        let description = find_object_description(tokens, alternative.get_start_token(), config.comment_priority_trailing, false);
+                        let description = find_object_description(
+                            tokens,
+                            alternative.get_start_token(),
+                            config.comment_priority_trailing,
+                            false,
+                        );
 
                         // go through the choices
                         for choice in &alternative.choices {
@@ -202,7 +210,8 @@ fn find_case(
                                 Choice::Others => {
                                     // there shouldn't be anything more than a jump to the reset state in here
                                     if let Some(transition) = transitions.get(0) {
-                                        fsm_description.default_state = transition.destination.clone();
+                                        fsm_description.default_state =
+                                            transition.destination.clone();
                                     }
                                 }
                                 _ => {}
@@ -215,30 +224,23 @@ fn find_case(
                         find_case(tokens, &alternative.item, config, fsm_description);
                     }
                 }
-            },
+            }
             If(if_statement) => {
                 // explore every branch
 
                 for condition in &if_statement.conds.conditionals {
-                    find_case(tokens,
-                        &condition.item,
-                        config,
-                        fsm_description);
+                    find_case(tokens, &condition.item, config, fsm_description);
                 }
                 if let Some(else_condition) = &if_statement.conds.else_item {
-                    find_case(tokens,
-                        &else_condition.0,
-                        config,
-                        fsm_description);
+                    find_case(tokens, &else_condition.0, config, fsm_description);
                 }
-            },
+            }
             Loop(loop_statement) => {
                 // explore inside the loop
 
                 find_case(tokens, &loop_statement.statements, config, fsm_description);
-            },
-            _ => {
             }
+            _ => {}
         }
     }
 }
@@ -255,17 +257,19 @@ fn find_transitions(
     for statement in statements {
         match &statement.statement.item {
             VariableAssignment(variable_assignment) => {
-                if let Target::Name(name) =  &variable_assignment.target.item
-                {
+                if let Target::Name(name) = &variable_assignment.target.item {
                     if name.to_string() == config.write_variable_name {
                         // we are assigning to the correct variable
-                        if let AssignmentRightHand::Simple(expression) =
-                            &variable_assignment.rhs
-                        {
+                        if let AssignmentRightHand::Simple(expression) = &variable_assignment.rhs {
                             let target = expression.item.to_string();
 
                             let description = if let Some(tokenid) = condition_token {
-                                find_object_description(tokens, tokenid, config.comment_priority_trailing, false)
+                                find_object_description(
+                                    tokens,
+                                    tokenid,
+                                    config.comment_priority_trailing,
+                                    false,
+                                )
                             } else {
                                 None
                             };
@@ -281,8 +285,7 @@ fn find_transitions(
             }
 
             SignalAssignment(signal_assignment) => {
-                if let Target::Name(name) =  &signal_assignment.target.item
-                {
+                if let Target::Name(name) = &signal_assignment.target.item {
                     if name.to_string() == config.write_variable_name {
                         // we are assigning to the correct variable
                         if let AssignmentRightHand::Simple(Elements(elements)) =
@@ -293,7 +296,12 @@ fn find_transitions(
                                 let target = element.value.item.to_string();
 
                                 let description = if let Some(tokenid) = condition_token {
-                                    find_object_description(tokens, tokenid, config.comment_priority_trailing, false)
+                                    find_object_description(
+                                        tokens,
+                                        tokenid,
+                                        config.comment_priority_trailing,
+                                        false,
+                                    )
                                 } else {
                                     None
                                 };
@@ -376,24 +384,26 @@ fn find_transitions(
 }
 
 impl FSMDescription {
-
     /// generate a dot description of the fsm
-    pub fn to_dot(&self, config_dot: &FSMDotConfig) -> Result<String,String> {
+    pub fn to_dot(&self, config_dot: &FSMDotConfig) -> Result<String, String> {
         let mut result = string_builder::Builder::default();
 
-        result.append(format!("digraph {{\n  fontname=\"{}\"\n",
-            config_dot.font_name));
+        result.append(format!(
+            "digraph {{\n  fontname=\"{}\"\n",
+            config_dot.font_name
+        ));
         result.append(format!("  node [fontname=\"{}\", shape={}, style=filled, fillcolor=\"{}\", color=\"{}\", fontcolor=\"{}\", fontsize={}]\n",
-            config_dot.font_name, 
-            config_dot.state_shape, 
+            config_dot.font_name,
+            config_dot.state_shape,
             config_dot.state_background_color,
             config_dot.state_line_color,
             config_dot.state_text_color,
             config_dot.state_font_size
         ));
 
-        result.append(format!("  edge [fontname=\"{}\", color=\"{}\", fontcolor=\"{}\", fontsize={}]\n",
-            config_dot.font_name, 
+        result.append(format!(
+            "  edge [fontname=\"{}\", color=\"{}\", fontcolor=\"{}\", fontsize={}]\n",
+            config_dot.font_name,
             config_dot.transition_line_color,
             config_dot.transition_text_color,
             config_dot.transition_font_size
@@ -404,9 +414,10 @@ impl FSMDescription {
         }
 
         if self.default_state.len() > 0 {
-            result.append(format!("  {} [shape={}, fillcolor=\"{}\", color=\"{}\", fontcolor=\"{}\", fontsize={}]\n",
+            result.append(format!(
+                "  {} [shape={}, fillcolor=\"{}\", color=\"{}\", fontcolor=\"{}\", fontsize={}]\n",
                 self.default_state,
-                config_dot.default_state_shape, 
+                config_dot.default_state_shape,
                 config_dot.default_state_background_color,
                 config_dot.default_state_line_color,
                 config_dot.default_state_text_color,
@@ -425,9 +436,8 @@ impl FSMDescription {
                 };
                 result.append(format!(
                     "  {} -> {}{}\n",
-                    state.name,
-                    transition.destination,
-                    label_command));
+                    state.name, transition.destination, label_command
+                ));
             }
         }
         result.append("}\n");
@@ -436,14 +446,20 @@ impl FSMDescription {
     }
 }
 
-
 #[cfg_attr(target_arch = "wasm32", wasm_func)]
-fn get_fsm_as_dot(id: &[u8], file_name: &[u8], vhdl_standard: &[u8], contents: &[u8], config_str: &[u8], config_dot_str: &[u8]) -> Result<Vec<u8>, String> {
+fn get_fsm_as_dot(
+    id: &[u8],
+    file_name: &[u8],
+    vhdl_standard: &[u8],
+    contents: &[u8],
+    config_str: &[u8],
+    config_dot_str: &[u8],
+) -> Result<Vec<u8>, String> {
     let id = decode_typst_arg_id(id)?;
     let file_name = decode_typst_arg(file_name)?;
     let vhdl_standard = decode_typst_arg(vhdl_standard)?;
     let contents = decode_typst_arg(contents)?;
-    let config : FSMConfig = decode_typst_arg_struct(config_str)?;
+    let config: FSMConfig = decode_typst_arg_struct(config_str)?;
     let config_dot: FSMDotConfig = decode_typst_arg_struct(config_dot_str)?;
 
     let designfile = get_parsed(id, file_name, vhdl_standard, contents)?;
@@ -454,12 +470,18 @@ fn get_fsm_as_dot(id: &[u8], file_name: &[u8], vhdl_standard: &[u8], contents: &
 }
 
 #[cfg_attr(target_arch = "wasm32", wasm_func)]
-fn get_fsm_as_struct(id: &[u8], file_name: &[u8], vhdl_standard: &[u8], contents: &[u8], config_str: &[u8]) -> Result<Vec<u8>, String> {
+fn get_fsm_as_struct(
+    id: &[u8],
+    file_name: &[u8],
+    vhdl_standard: &[u8],
+    contents: &[u8],
+    config_str: &[u8],
+) -> Result<Vec<u8>, String> {
     let id = decode_typst_arg_id(id)?;
     let file_name = decode_typst_arg(file_name)?;
     let vhdl_standard = decode_typst_arg(vhdl_standard)?;
     let contents = decode_typst_arg(contents)?;
-    let config : FSMConfig = decode_typst_arg_struct(config_str)?;
+    let config: FSMConfig = decode_typst_arg_struct(config_str)?;
 
     let designfile = get_parsed(id, file_name, vhdl_standard, contents)?;
 
@@ -492,7 +514,7 @@ mod tests {
             &FSMConfig {
                 read_variable_name: "fsm.state".to_owned(),
                 write_variable_name: "fsm.state".to_owned(),
-                comment_priority_trailing: true
+                comment_priority_trailing: true,
             },
         )
         .unwrap();
@@ -501,26 +523,47 @@ mod tests {
         assert_eq!(fsm.default_state, "reset");
         assert_eq!(fsm.states.len(), 4);
         assert_eq!(fsm.states[0].name, "reset");
-        assert_eq!(fsm.states[0].description, Some("start and reset state".to_owned()));
+        assert_eq!(
+            fsm.states[0].description,
+            Some("start and reset state".to_owned())
+        );
         assert_eq!(fsm.states[0].transitions.len(), 1);
         assert_eq!(fsm.states[0].transitions[0].destination, "idle");
         assert_eq!(fsm.states[0].transitions[0].condition, "");
-        assert_eq!(fsm.states[0].transitions[0].description, Some("out of reset".to_owned()));
+        assert_eq!(
+            fsm.states[0].transitions[0].description,
+            Some("out of reset".to_owned())
+        );
         assert_eq!(fsm.states[1].name, "idle");
-        assert_eq!(fsm.states[1].description, Some("normal state when nothing happens".to_owned()));
+        assert_eq!(
+            fsm.states[1].description,
+            Some("normal state when nothing happens".to_owned())
+        );
         assert_eq!(fsm.states[1].transitions.len(), 1);
         assert_eq!(fsm.states[1].transitions[0].destination, "read_input");
         assert_eq!(fsm.states[1].transitions[0].condition, "input_b = '1'");
-        assert_eq!(fsm.states[1].transitions[0].description, Some("new input".to_owned()));
+        assert_eq!(
+            fsm.states[1].transitions[0].description,
+            Some("new input".to_owned())
+        );
         assert_eq!(fsm.states[2].name, "read_input");
-        assert_eq!(fsm.states[2].description, Some("waiting for input".to_owned()));
+        assert_eq!(
+            fsm.states[2].description,
+            Some("waiting for input".to_owned())
+        );
         assert_eq!(fsm.states[2].transitions.len(), 2);
         assert_eq!(fsm.states[2].transitions[0].destination, "idle");
         assert_eq!(fsm.states[2].transitions[0].condition, "input_d = '1'");
         assert_eq!(fsm.states[2].transitions[0].description, None);
         assert_eq!(fsm.states[2].transitions[1].destination, "write_output");
-        assert_eq!(fsm.states[2].transitions[1].condition, "data_in = std_logic_vector(value)");
-        assert_eq!(fsm.states[2].transitions[1].description, Some("correct input".to_owned()));
+        assert_eq!(
+            fsm.states[2].transitions[1].condition,
+            "data_in = std_logic_vector(value)"
+        );
+        assert_eq!(
+            fsm.states[2].transitions[1].description,
+            Some("correct input".to_owned())
+        );
         assert_eq!(fsm.states[3].name, "write_output");
         assert_eq!(fsm.states[3].description, Some("send output".to_owned()));
         assert_eq!(fsm.states[3].transitions.len(), 2);
@@ -529,6 +572,9 @@ mod tests {
         assert_eq!(fsm.states[3].transitions[0].description, None);
         assert_eq!(fsm.states[3].transitions[1].destination, "write_output");
         assert_eq!(fsm.states[3].transitions[1].condition, "");
-        assert_eq!(fsm.states[3].transitions[1].description, Some("stay".to_owned()));
+        assert_eq!(
+            fsm.states[3].transitions[1].description,
+            Some("stay".to_owned())
+        );
     }
 }

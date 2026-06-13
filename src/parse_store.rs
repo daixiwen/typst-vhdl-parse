@@ -81,10 +81,12 @@ pub fn parse_content(
 }
 
 /// looks for a previously parsed file in the storage. If not found, parse it again
-pub fn get_parsed(id: u64, 
+pub fn get_parsed(
+    id: u64,
     file_name: &str,
     vhdl_standard: &str,
-    contents: &str) -> Result<DesignFile, String> {
+    contents: &str,
+) -> Result<DesignFile, String> {
     let parsed_index = PARSED_STORE.lock().unwrap();
 
     match parsed_index.get(&id) {
@@ -98,10 +100,9 @@ pub fn get_parsed(id: u64,
             } else {
                 match parsed_index.get(&id) {
                     Some(design) => Ok(design.clone()),
-                    None => Err("unknown cache error".to_owned())       // this should never happen
+                    None => Err("unknown cache error".to_owned()), // this should never happen
                 }
             }
-        
         }
     }
 }
