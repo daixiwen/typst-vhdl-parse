@@ -11,13 +11,20 @@ use crate::{decode_typst_arg, decode_typst_arg_id, encode_typst_return};
 #[cfg(target_arch = "wasm32")]
 wasm_minimal_protocol::initiate_protocol!();
 
+/// Describes a port
 #[derive(Serialize)]
 pub struct PortEntry {
+    /// port name
     pub name: String,
+    /// port mode (in, out, inout, buffer)              
     pub mode: String,
+    /// type           
     pub port_type: String,
+    /// constraint (x downto y)       
     pub constraint: Option<String>,
+    /// comment or description
     pub description: Option<String>,
+    /// default value
     pub default_value: Option<String>,
 }
 
@@ -41,6 +48,7 @@ pub fn get_port_list_from_design(
 
                 for port in &port_list.items {
                     match port {
+                        // normal port (not file)
                         InterfaceDeclaration::Object(obj_decl) => {
                             // Get mode (direction) and type from the mode indication
                             let (mode_str, type_str, constraint_str, default_value) =
@@ -88,6 +96,8 @@ pub fn get_port_list_from_design(
                                 });
                             }
                         }
+
+                        // file port
                         InterfaceDeclaration::File(file_decl) => {
                             for id in &file_decl.idents {
                                 let name = id.tree.item.name_utf8();
@@ -122,6 +132,8 @@ pub fn get_port_list_from_design(
     return Err("no entity found in file".to_owned());
 }
 
+/// typst plugin function to extract the generics from the file and return them as
+/// an array of PortEntry
 #[cfg_attr(target_arch = "wasm32", wasm_func)]
 fn get_port_list(
     id: &[u8],

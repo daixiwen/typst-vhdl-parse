@@ -12,12 +12,18 @@ use wasm_minimal_protocol::wasm_func;
 #[cfg(target_arch = "wasm32")]
 wasm_minimal_protocol::initiate_protocol!();
 
+// Describes a single generic
 #[derive(Serialize)]
 pub struct GenericEntry {
+    /// generic name
     pub name: String,
+    /// type           
     pub generic_type: String,
+    /// constraint (x downto y)      
     pub constraint: Option<String>,
+    /// comment or description
     pub description: Option<String>,
+    /// default value
     pub default_value: Option<String>,
 }
 
@@ -40,8 +46,11 @@ pub fn get_generic_list_from_design(
                 let mut entries: Vec<GenericEntry> = Vec::new();
 
                 for generic in &generic_list.items {
+                    // for now I'm only decoding generics with ModeInfication::Simple, I don't know if some exotic
+                    // code could produce something else
                     if let InterfaceDeclaration::Object(obj_decl) = generic {
                         if let ModeIndication::Simple(simple) = &obj_decl.mode {
+                            // extract all the information to create the GenericEntry
                             let type_str = simple.subtype_indication.type_mark.to_string();
                             let constraint = simple
                                 .subtype_indication
@@ -124,6 +133,8 @@ mod tests {
     }
 }
 
+/// typst plugin function to extract the generics from the file and return them as
+/// an array of GenericEntry
 #[cfg_attr(target_arch = "wasm32", wasm_func)]
 fn get_generic_list(
     id: &[u8],

@@ -30,7 +30,7 @@ lazy_static! {
     static ref ID_STORE: Mutex<HashMap<String, u64>> = Mutex::new(HashMap::new());
 }
 
-/// parse a VHDL file. Returns its ID and an array of diagnostic messages
+/// parse a VHDL file and stores it in cache. Returns its ID and an array of diagnostic messages
 pub fn parse_content(
     file_name: &str,
     vhdl_standard: &str,
@@ -113,6 +113,7 @@ struct ParseResponse {
     messages: Vec<String>,
 }
 
+/// typst plugin function to parse a VHDL file
 #[cfg_attr(target_arch = "wasm32", wasm_func)]
 fn parse(file_name: &[u8], vhdl_standard: &[u8], contents: &[u8]) -> Result<Vec<u8>, String> {
     let file_name = decode_typst_arg(file_name)?;

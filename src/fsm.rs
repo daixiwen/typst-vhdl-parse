@@ -17,61 +17,92 @@ use wasm_minimal_protocol::wasm_func;
 #[cfg(target_arch = "wasm32")]
 wasm_minimal_protocol::initiate_protocol!();
 
+/// This is the main structure describing a state machine, with a list of states
 #[derive(Serialize, Default, Debug)]
 pub struct FSMDescription {
+    /// name of the default state, after reset
     pub default_state: String,
+    /// an array of states
     pub states: Vec<FSMState>,
 }
 
+/// Describes a state with a list of transitions
 #[derive(Serialize, Debug)]
 pub struct FSMState {
+    /// state name
     pub name: String,
+    /// state description                  
     pub description: Option<String>,
+    /// list of transitions
     pub transitions: Vec<FSMTransition>,
 }
 
+/// Describes a transition from one state to another
 #[derive(Serialize, Clone, Debug)]
 pub struct FSMTransition {
+    /// name of the destination state
     pub destination: String,
+    /// condition of the transition
     pub condition: String,
+    /// description of the transision   
     pub description: Option<String>,
 }
 
 /// configuration to find the FSM and extract the information
 #[derive(Deserialize)]
 pub struct FSMConfig {
+    /// name of the signal or variable read in the FSM (in the case statement)
     pub read_variable_name: String,
+    /// name of the signal or variable written in the FSM (target of the assignments to change state)
     pub write_variable_name: String,
+    /// whether to prioritise trailing comments over leading comments for descriptions
     pub comment_priority_trailing: bool,
 }
 
 /// configuration for DOT file generation
 #[derive(Deserialize)]
 pub struct FSMDotConfig {
+    /// if true, place states left to right instead of top to bottom
     pub left_to_right: bool,
+    /// name of the font to use for all text
     pub font_name: String,
+    /// shape for normal states
     pub state_shape: String,
+    /// background color for normal states
     pub state_background_color: String,
+    /// perimeter line color for normal states
     pub state_line_color: String,
+    /// text color for normal states
     pub state_text_color: String,
+    /// text size for normal states
     pub state_font_size: f64,
+    /// shape for reset state
     pub default_state_shape: String,
+    /// background color for reset state
     pub default_state_background_color: String,
+    /// perimeter line color for reset state
     pub default_state_line_color: String,
+    /// text color for reset state
     pub default_state_text_color: String,
+    /// text size for reset state
     pub default_state_font_size: f64,
+    /// line color for transitions
     pub transition_line_color: String,
+    /// text color for transitions
     pub transition_text_color: String,
+    /// text size for transitions
     pub transition_font_size: f64,
 }
 
-// look for a state machine in a design file
+/// look for a state machine in a design file
 pub fn get_fsm(design: DesignFile, config: &FSMConfig) -> Result<FSMDescription, String> {
     let mut fsm_description = FSMDescription::default();
 
     for (tokens, design_unit) in &design.design_units {
+        // look for an architecture, and more precisely the body part
         if let AnyDesignUnit::Secondary(AnySecondaryUnit::Architecture(architecture)) = design_unit
         {
+            // loop through the concurrent statements in the body. Put the result in fsm_description
             process_concurrent_statements(
                 tokens,
                 &architecture.statements,
@@ -96,8 +127,8 @@ fn process_concurrent_statements(
     fsm_description: &mut FSMDescription,
 ) {
     for statement in statements {
+        // for every concurrent statement holding other concurrent statements, go through them
         match &statement.statement.item {
-            // for every concurrent statement holding other concurrent statements, go through them
             Block(block_statement) => {
                 process_concurrent_statements(
                     tokens,
@@ -161,7 +192,7 @@ fn process_concurrent_statements(
     }
 }
 
-// go through sequential statements, looking for a FSM in a case statement
+/// go through sequential statements, looking for a FSM in a case statement
 fn find_case(
     tokens: &Vec<Token>,
     statements: &Vec<LabeledSequentialStatement>,
@@ -226,7 +257,7 @@ fn find_case(
                 }
             }
             If(if_statement) => {
-                // explore every branch
+                // inside an if, explore every branch
 
                 for condition in &if_statement.conds.conditionals {
                     find_case(tokens, &condition.item, config, fsm_description);
@@ -245,7 +276,7 @@ fn find_case(
     }
 }
 
-// go through sequential statements and look for transitions
+/// go through sequential statements and look for transitions
 fn find_transitions(
     tokens: &Vec<Token>,
     statements: &Vec<LabeledSequentialStatement>,
@@ -256,6 +287,7 @@ fn find_transitions(
 ) {
     for statement in statements {
         match &statement.statement.item {
+            // assignment done to a variable
             VariableAssignment(variable_assignment) => {
                 if let Target::Name(name) = &variable_assignment.target.item {
                     if name.to_string() == config.write_variable_name {
@@ -284,6 +316,7 @@ fn find_transitions(
                 }
             }
 
+            // assignment done to a signal
             SignalAssignment(signal_assignment) => {
                 if let Target::Name(name) = &signal_assignment.target.item {
                     if name.to_string() == config.write_variable_name {
@@ -446,6 +479,7 @@ impl FSMDescription {
     }
 }
 
+/// typst plugin function to find an FSM and generate a Dot description for a figure
 #[cfg_attr(target_arch = "wasm32", wasm_func)]
 fn get_fsm_as_dot(
     id: &[u8],
@@ -469,6 +503,7 @@ fn get_fsm_as_dot(
     encode_typst_return(&fsm.to_dot(&config_dot)?)
 }
 
+/// typst plugin function to find an FSM and return it as a FSMDescription structure
 #[cfg_attr(target_arch = "wasm32", wasm_func)]
 fn get_fsm_as_struct(
     id: &[u8],

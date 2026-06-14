@@ -47,9 +47,9 @@ pub fn find_object_description(
     }
 }
 
+/// Scan the token list for an object on the same line that has a
+///    trailing comment — this is the same-line comment description.
 pub fn find_trailing_comment(tokens: &[Token], object_line: u32) -> Option<String> {
-    // Scan the token list for an object on the same line that has a
-    //    trailing comment — this is the same-line comment description.
     for token in tokens.iter() {
         let token_line = token.pos.range.start.line;
 
@@ -67,9 +67,9 @@ pub fn find_trailing_comment(tokens: &[Token], object_line: u32) -> Option<Strin
     return None;
 }
 
+/// Check the identifier token's leading comments for a solo comment
+///    on the line immediately before the object
 pub fn find_leading_comment(object_token: &Token, object_line: u32) -> Option<String> {
-    // Check the identifier token's leading comments for a solo comment
-    //    on the line immediately before the object
     if let Some(comments) = &object_token.comments {
         if let Some(leading) = comments.leading.last() {
             // A leading comment on the line just before the port
@@ -81,9 +81,9 @@ pub fn find_leading_comment(object_token: &Token, object_line: u32) -> Option<St
     return None;
 }
 
+/// Scan the token list for an object on the same line that has a
+///    trailing comment — this is the same-line comment description.
 pub fn find_first_token(tokens: &[Token], object_line: u32) -> Option<&Token> {
-    // Scan the token list for an object on the same line that has a
-    //    trailing comment — this is the same-line comment description.
     for token in tokens.iter() {
         let token_line = token.pos.range.start.line;
 
