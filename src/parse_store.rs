@@ -107,6 +107,7 @@ pub fn get_parsed(
     }
 }
 
+#[allow(dead_code)]
 #[derive(Serialize)]
 struct ParseResponse {
     id: String,
@@ -114,6 +115,7 @@ struct ParseResponse {
 }
 
 /// typst plugin function to parse a VHDL file
+#[allow(dead_code)]
 #[cfg_attr(target_arch = "wasm32", wasm_func)]
 fn parse(file_name: &[u8], vhdl_standard: &[u8], contents: &[u8]) -> Result<Vec<u8>, String> {
     let file_name = decode_typst_arg(file_name)?;

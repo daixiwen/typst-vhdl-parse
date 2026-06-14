@@ -135,6 +135,7 @@ mod tests {
 
 /// typst plugin function to extract the generics from the file and return them as
 /// an array of GenericEntry
+#[allow(dead_code)]
 #[cfg_attr(target_arch = "wasm32", wasm_func)]
 fn get_generic_list(
     id: &[u8],

@@ -480,6 +480,7 @@ impl FSMDescription {
 }
 
 /// typst plugin function to find an FSM and generate a Dot description for a figure
+#[allow(dead_code)]
 #[cfg_attr(target_arch = "wasm32", wasm_func)]
 fn get_fsm_as_dot(
     id: &[u8],
@@ -504,6 +505,7 @@ fn get_fsm_as_dot(
 }
 
 /// typst plugin function to find an FSM and return it as a FSMDescription structure
+#[allow(dead_code)]
 #[cfg_attr(target_arch = "wasm32", wasm_func)]
 fn get_fsm_as_struct(
     id: &[u8],

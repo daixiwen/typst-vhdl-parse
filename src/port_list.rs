@@ -134,6 +134,7 @@ pub fn get_port_list_from_design(
 
 /// typst plugin function to extract the generics from the file and return them as
 /// an array of PortEntry
+#[allow(dead_code)]
 #[cfg_attr(target_arch = "wasm32", wasm_func)]
 fn get_port_list(
     id: &[u8],
