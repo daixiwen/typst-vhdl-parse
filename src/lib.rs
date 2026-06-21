@@ -1,6 +1,7 @@
 pub mod comments;
 pub mod fsm;
 pub mod generic_list;
+pub mod instances;
 pub mod parse_store;
 pub mod port_list;
 
