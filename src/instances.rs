@@ -8,6 +8,14 @@ use vhdl_lang::ast::{
 use vhdl_lang::{HasTokenSpan, Token};
 
 use crate::comments::find_object_description;
+use crate::parse_store::get_parsed;
+use crate::{decode_typst_arg, decode_typst_arg_id, encode_typst_return};
+
+#[cfg(target_arch = "wasm32")]
+use wasm_minimal_protocol::wasm_func;
+
+#[cfg(target_arch = "wasm32")]
+wasm_minimal_protocol::initiate_protocol!();
 
 /// Describes a single instantiation
 #[derive(Serialize)]
@@ -227,4 +235,25 @@ mod tests {
         assert_eq!(port.origin, "output");
         assert_eq!(port.expression, "output_a");
     }
+}
+
+/// typst plugin function to find the instances in a file and return it as an array of InstanceDescription
+#[allow(dead_code)]
+#[cfg_attr(target_arch = "wasm32", wasm_func)]
+fn get_instances_list(
+    id: &[u8],
+    file_name: &[u8],
+    vhdl_standard: &[u8],
+    contents: &[u8],
+) -> Result<Vec<u8>, String> {
+    let id = decode_typst_arg_id(id)?;
+    let file_name = decode_typst_arg(file_name)?;
+    let vhdl_standard = decode_typst_arg(vhdl_standard)?;
+    let contents = decode_typst_arg(contents)?;
+
+    let designfile = get_parsed(id, file_name, vhdl_standard, contents)?;
+
+    let instances = get_instances(designfile)?;
+
+    encode_typst_return(&instances)
 }

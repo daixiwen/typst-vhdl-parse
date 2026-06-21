@@ -88,4 +88,17 @@ begin
       end if;
     end if;
   end process;
+
+  -- an example instantiation
+  my_instance : entity work.comp
+    generic map (
+      enabled => true
+    )
+    port map (
+      clk => clock,
+      rst => reset,
+      input => input_b,
+      output => output_a
+    );
+
 end architecture rtl;

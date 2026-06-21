@@ -111,3 +111,8 @@ Diagram:
 
 //#dotfile
 
+= Instances
+
+#let instances = vhdl_parse.instanceslist(parsed_file)
+
+#instances
