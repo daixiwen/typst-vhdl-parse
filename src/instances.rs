@@ -172,3 +172,59 @@ fn get_map(map: &Option<MapAspect>) -> Vec<InstanceAssignment> {
         None => Vec::new(),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::Path;
+    use vhdl_lang::{Source, VHDLParser, VHDLStandard};
+
+    fn parse_test_file() -> DesignFile {
+        let contents = std::fs::read_to_string("test/test.vhd").unwrap();
+        let parser = VHDLParser::new(VHDLStandard::VHDL2008);
+        let mut diagnostics = Vec::new();
+        parser.parse_design_source(
+            &Source::inline(Path::new("test.vhd"), &contents),
+            &mut diagnostics,
+        )
+    }
+
+    #[test]
+    fn test_instances() {
+        let design = parse_test_file();
+        let instances = get_instances(design).unwrap();
+
+        // check the returned list
+        assert_eq!(instances.len(), 1);
+
+        // check the first instance
+        let my_instance = instances.get(0).unwrap();
+        assert_eq!(my_instance.label, "my_instance");
+        assert_eq!(my_instance.entity, "work.comp");
+        assert_eq!(
+            my_instance.description,
+            Some("an example instantiation".to_owned())
+        );
+
+        // check the generic map
+        assert_eq!(my_instance.generics_map.len(), 1);
+        let generic = my_instance.generics_map.get(0).unwrap();
+        assert_eq!(generic.origin, "enabled");
+        assert_eq!(generic.expression, "true");
+
+        // check the port map
+        assert_eq!(my_instance.ports_map.len(), 4);
+        let port = my_instance.ports_map.get(0).unwrap();
+        assert_eq!(port.origin, "clk");
+        assert_eq!(port.expression, "clock");
+        let port = my_instance.ports_map.get(1).unwrap();
+        assert_eq!(port.origin, "rst");
+        assert_eq!(port.expression, "reset");
+        let port = my_instance.ports_map.get(2).unwrap();
+        assert_eq!(port.origin, "input");
+        assert_eq!(port.expression, "input_b");
+        let port = my_instance.ports_map.get(3).unwrap();
+        assert_eq!(port.origin, "output");
+        assert_eq!(port.expression, "output_a");
+    }
+}
