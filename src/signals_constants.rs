@@ -16,6 +16,8 @@ pub struct ObjectDescription {
     pub name: String,
     /// signal or constant type
     pub object_type: String,
+    /// constraint (x downto y)
+    pub constraint: Option<String>,
     /// constant value or signal initial value
     pub expression: Option<String>,
     /// a description for the signal (comment)
@@ -45,7 +47,12 @@ pub fn get_signals_constants(
             for declaration in &architecture.decl {
                 if let Object(object_declaration) = &declaration.item {
                     // extract details about the objects
-                    let object_type = object_declaration.subtype_indication.to_string();
+                    let object_type = object_declaration.subtype_indication.type_mark.to_string();
+                    let constraint = object_declaration
+                        .subtype_indication
+                        .constraint
+                        .as_ref()
+                        .map(|constraint| constraint.to_string());
                     let expression = object_declaration
                         .expression
                         .as_ref()
@@ -64,6 +71,7 @@ pub fn get_signals_constants(
                         .map(|ident| ObjectDescription {
                             name: ident.tree.item.to_string(),
                             object_type: object_type.clone(),
+                            constraint: constraint.clone(),
                             expression: expression.clone(),
                             description: description.clone(),
                         })
@@ -117,7 +125,8 @@ mod tests {
         // check the only constant
         let my_constant = sigs_consts.constants.get(0).unwrap();
         assert_eq!(my_constant.name, "c_ones");
-        assert_eq!(my_constant.object_type, "std_logic_vector(31 downto 0)");
+        assert_eq!(my_constant.object_type, "std_logic_vector");
+        assert_eq!(my_constant.constraint, Some("(31 downto 0)".to_owned()));
         assert_eq!(my_constant.expression, Some("(others => '1')".to_owned()));
         assert_eq!(my_constant.description, Some("a constant".to_owned()));
 
@@ -128,6 +137,7 @@ mod tests {
         let my_signal = sigs_consts.signals.get(0).unwrap();
         assert_eq!(my_signal.name, "fsm");
         assert_eq!(my_signal.object_type, "fsm_wrapper_t");
+        assert_eq!(my_signal.constraint, None);
         assert_eq!(my_signal.expression, None);
         assert_eq!(
             my_signal.description,
@@ -137,7 +147,8 @@ mod tests {
         // check the second signal
         let my_signal = sigs_consts.signals.get(1).unwrap();
         assert_eq!(my_signal.name, "mysignal");
-        assert_eq!(my_signal.object_type, "unsigned(15 downto 0)");
+        assert_eq!(my_signal.object_type, "unsigned");
+        assert_eq!(my_signal.constraint, Some("(15 downto 0)".to_owned()));
         assert_eq!(my_signal.expression, Some("(others => '0')".to_owned()));
         assert_eq!(
             my_signal.description,
