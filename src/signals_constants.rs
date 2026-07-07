@@ -1,3 +1,4 @@
+use serde::Serialize;
 use vhdl_lang::{
     HasTokenSpan,
     ast::{
@@ -9,8 +10,17 @@ use vhdl_lang::{
 };
 
 use crate::comments::find_object_description;
+use crate::parse_store::get_parsed;
+use crate::{decode_typst_arg, decode_typst_arg_id, encode_typst_return};
+
+#[cfg(target_arch = "wasm32")]
+use wasm_minimal_protocol::wasm_func;
+
+#[cfg(target_arch = "wasm32")]
+wasm_minimal_protocol::initiate_protocol!();
 
 /// Describes a signal or a constant
+#[derive(Serialize)]
 pub struct ObjectDescription {
     /// signal or constant name
     pub name: String,
@@ -25,6 +35,7 @@ pub struct ObjectDescription {
 }
 
 /// Return from the analysys function
+#[derive(Serialize)]
 pub struct SignalsConstants {
     /// signals list
     pub signals: Vec<ObjectDescription>,
@@ -155,4 +166,27 @@ mod tests {
             Some("a signal with a comment on the same line".to_owned())
         );
     }
+}
+
+/// typst plugin function to find the architectures in a file and return a structure with its constants and signals
+#[allow(dead_code)]
+#[cfg_attr(target_arch = "wasm32", wasm_func)]
+fn get_signals_constants_struct(
+    id: &[u8],
+    file_name: &[u8],
+    vhdl_standard: &[u8],
+    contents: &[u8],
+    comment_priority: &[u8],
+) -> Result<Vec<u8>, String> {
+    let id = decode_typst_arg_id(id)?;
+    let file_name = decode_typst_arg(file_name)?;
+    let vhdl_standard = decode_typst_arg(vhdl_standard)?;
+    let contents = decode_typst_arg(contents)?;
+    let priority_trailing = decode_typst_arg(comment_priority)? == "trailing";
+
+    let designfile = get_parsed(id, file_name, vhdl_standard, contents)?;
+
+    let sigs_consts = get_signals_constants(designfile, priority_trailing)?;
+
+    encode_typst_return(&sigs_consts)
 }
