@@ -39,6 +39,9 @@ architecture rtl of test is
 
   signal mysignal : unsigned(15 downto 0) := (others => '0'); -- a signal with a comment on the same line
 
+    -- a constant
+  constant c_ones : std_logic_vector(31 downto 0) := (others => '1');
+
 begin  
 
   process (clock)
