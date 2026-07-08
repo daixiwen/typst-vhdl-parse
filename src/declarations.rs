@@ -42,8 +42,8 @@ pub struct SignalsConstants {
     /// constants list
     pub constants: Vec<ObjectDescription>,
 }
-/// return the list of signals in a design file
-pub fn get_signals_constants(
+/// return the list of declarations in a design file
+pub fn get_declarations(
     design: DesignFile,
     priority_trailing: bool,
 ) -> Result<SignalsConstants, String> {
@@ -128,7 +128,7 @@ mod tests {
     #[test]
     fn test_sigs_consts() {
         let design = parse_test_file();
-        let sigs_consts = get_signals_constants(design, false).unwrap();
+        let sigs_consts = get_declarations(design, false).unwrap();
 
         // check the constants list
         assert_eq!(sigs_consts.constants.len(), 1);
@@ -171,7 +171,7 @@ mod tests {
 /// typst plugin function to find the architectures in a file and return a structure with its constants and signals
 #[allow(dead_code)]
 #[cfg_attr(target_arch = "wasm32", wasm_func)]
-fn get_signals_constants_struct(
+fn get_declarations_struct(
     id: &[u8],
     file_name: &[u8],
     vhdl_standard: &[u8],
@@ -186,7 +186,7 @@ fn get_signals_constants_struct(
 
     let designfile = get_parsed(id, file_name, vhdl_standard, contents)?;
 
-    let sigs_consts = get_signals_constants(designfile, priority_trailing)?;
+    let sigs_consts = get_declarations(designfile, priority_trailing)?;
 
     encode_typst_return(&sigs_consts)
 }
