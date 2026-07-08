@@ -116,3 +116,27 @@ Diagram:
 #let instances = vhdl_parse.instanceslist(parsed_file)
 
 #instances
+
+= Constants
+
+#let constants = vhdl_parse.constantslist(parsed_file)
+
+#table(
+    columns: (auto, auto, auto, 1fr),
+    table.header([name], [type], [description], [value]),
+    ..for entry in constants {
+        ( [#entry.name], [#{entry.object_type}#{entry.constraint}], [#entry.description], [#entry.expression])
+    }
+)
+
+= Signals
+
+#let signals = vhdl_parse.signalslist(parsed_file)
+
+#table(
+    columns: (auto, auto, auto, 1fr),
+    table.header([name], [type], [description], [initial value]),
+    ..for entry in signals {
+        ( [#entry.name], [#{entry.object_type}#{entry.constraint}], [#entry.description], [#entry.expression])
+    }
+)

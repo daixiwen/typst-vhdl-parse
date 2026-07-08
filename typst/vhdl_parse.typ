@@ -291,3 +291,63 @@
     parsed_file.orig_vhdl, 
     parsed_file.orig_contents))
 }
+
+/// constantslist: returns the constants list from the architecture in the parsed file
+///
+/// - parsed_file (struct):      The parsed file object, as returned by parse() 
+/// - comment_priority (string): (optional) override the default comment priority, either "leading" or "trailing" 
+/// 
+/// -> an array of dictionaries, with in each item:
+///    - name (string):                   the constant name
+///    - object_type (string):            the constant type
+///    - constraint (string or none):     the type constraint (x downto y)
+///    - expression (string or none):     the constant value
+///    - description (string or none):    a comment describing the constant
+#let constantslist(parsed_file, comment_priority : none) = {
+  // arguments check and conversion
+  assert(type(parsed_file) == dictionary, message: "parsed_file must be the return value from the parse() function")
+  if comment_priority == none {
+    comment_priority = parsed_file.comment_priority
+  }
+  assert(("trailing", "leading").contains(comment_priority), message: "comment priority must be \"trailing\" or \"leading\"")
+
+  // call the plugin and return the results
+  let declarations = cbor(parsed_file.plugin.get_declarations_struct(
+    bytes(parsed_file.id), 
+    parsed_file.orig_fname, 
+    parsed_file.orig_vhdl, 
+    parsed_file.orig_contents,
+    bytes(comment_priority)))
+
+  return declarations.constants
+}
+
+/// signalslist: returns the signals list from the architecture in the parsed file
+///
+/// - parsed_file (struct):      The parsed file object, as returned by parse() 
+/// - comment_priority (string): (optional) override the default comment priority, either "leading" or "trailing" 
+/// 
+/// -> an array of dictionaries, with in each item:
+///    - name (string):                   the constant name
+///    - object_type (string):            the constant type
+///    - constraint (string or none):     the type constraint (x downto y)
+///    - expression (string or none):     the constant value
+///    - description (string or none):    a comment describing the constant
+#let signalslist(parsed_file, comment_priority : none) = {
+  // arguments check and conversion
+  assert(type(parsed_file) == dictionary, message: "parsed_file must be the return value from the parse() function")
+  if comment_priority == none {
+    comment_priority = parsed_file.comment_priority
+  }
+  assert(("trailing", "leading").contains(comment_priority), message: "comment priority must be \"trailing\" or \"leading\"")
+
+  // call the plugin and return the results
+  let declarations = cbor(parsed_file.plugin.get_declarations_struct(
+    bytes(parsed_file.id), 
+    parsed_file.orig_fname, 
+    parsed_file.orig_vhdl, 
+    parsed_file.orig_contents,
+    bytes(comment_priority)))
+
+  return declarations.signals
+}
