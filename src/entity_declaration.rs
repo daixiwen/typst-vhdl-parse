@@ -54,10 +54,10 @@ pub struct EntityDeclaration {
 }
 
 /// go through the design file, find the first entity and extracts its generics and
-/// ports list. Comments are extracted as description for each generic. Both 
-/// trailing comments (on the same line than the generic or port) and leading 
+/// ports list. Comments are extracted as description for each generic. Both
+/// trailing comments (on the same line than the generic or port) and leading
 /// comments (on the line before) are detected. If both a trailing and a leading
-/// comments are found, only one will be retained. If priority_trailing is true, 
+/// comments are found, only one will be retained. If priority_trailing is true,
 /// the trailing comment will be used, and if failse, the leading comment.
 pub fn get_entity_declaration_from_design(
     design: DesignFile,
@@ -112,7 +112,7 @@ pub fn get_entity_declaration_from_design(
                     }
                 }
             }
-                        // Look for the port clause
+            // Look for the port clause
             if let Some(port_list) = &entity_decl.port_clause {
                 // loop through each port and fill up an array with entries
                 for port in &port_list.items {
@@ -194,7 +194,7 @@ pub fn get_entity_declaration_from_design(
         }
     }
 
-    return Ok(EntityDeclaration { generics, ports })
+    return Ok(EntityDeclaration { generics, ports });
 }
 
 #[cfg(test)]
@@ -216,7 +216,9 @@ mod tests {
     #[test]
     fn test_generic_descriptions() {
         let design = parse_test_file();
-        let generics = get_entity_declaration_from_design(design, true).unwrap().generics;
+        let generics = get_entity_declaration_from_design(design, true)
+            .unwrap()
+            .generics;
 
         assert_eq!(generics.len(), 2);
         assert_eq!(generics[0].name, "flag");
@@ -240,7 +242,9 @@ mod tests {
     #[test]
     fn test_port_descriptions() {
         let design = parse_test_file();
-        let ports = get_entity_declaration_from_design(design, true).unwrap().ports;
+        let ports = get_entity_declaration_from_design(design, true)
+            .unwrap()
+            .ports;
 
         // Ports with same-line comments
         assert_eq!(ports[0].name, "clock");

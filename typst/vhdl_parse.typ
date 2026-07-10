@@ -273,6 +273,7 @@
 /// instanceslist: returns the instances list from the first entity found in the parsed file
 ///
 /// - parsed_file (struct):      The parsed file object, as returned by parse() 
+/// - comment_priority (string): (optional) override the default comment priority, either "leading" or "trailing" 
 /// 
 /// -> an array of dictionaries, with in each item:
 ///    - label (string):                  the instantiation label
@@ -284,16 +285,21 @@
 /// ports and generics are described by the following dictionary
 ///    - origin (string):                 name of the generic or port on the entity side
 ///    - expression (string):             the expression associated to the generic or port
-#let instanceslist(parsed_file) = {
+#let instanceslist(parsed_file, comment_priority : none) = {
   // arguments check and conversion
   assert(type(parsed_file) == dictionary, message: "parsed_file must be the return value from the parse() function")
+  if comment_priority == none {
+    comment_priority = parsed_file.comment_priority
+  }
+  assert(("trailing", "leading").contains(comment_priority), message: "comment priority must be \"trailing\" or \"leading\"")
 
   // call the plugin and return the results
   return cbor(parsed_file.plugin.get_instances_list(
     bytes(parsed_file.id), 
     parsed_file.orig_fname, 
     parsed_file.orig_vhdl, 
-    parsed_file.orig_contents))
+    parsed_file.orig_contents, 
+    bytes(comment_priority)))
 }
 
 /// constantslist: returns the constants list from the architecture in the parsed file

@@ -42,7 +42,10 @@ pub struct InstanceAssignment {
 }
 
 /// return the list of instances in a design file
-pub fn get_instances(design: DesignFile) -> Result<Vec<InstanceDescription>, String> {
+pub fn get_instances(
+    design: DesignFile,
+    priority_trailing: bool,
+) -> Result<Vec<InstanceDescription>, String> {
     let mut instances_list: Vec<InstanceDescription> = Vec::default();
 
     for (tokens, design_unit) in &design.design_units {
@@ -50,7 +53,12 @@ pub fn get_instances(design: DesignFile) -> Result<Vec<InstanceDescription>, Str
         if let AnyDesignUnit::Secondary(AnySecondaryUnit::Architecture(architecture)) = design_unit
         {
             // loop through the concurrent statements in the body. Put the result in fsm_description
-            process_concurrent_statements(tokens, &architecture.statements, &mut instances_list)?;
+            process_concurrent_statements(
+                tokens,
+                &architecture.statements,
+                &mut instances_list,
+                priority_trailing,
+            )?;
         };
     }
 
@@ -62,12 +70,18 @@ fn process_concurrent_statements(
     tokens: &Vec<Token>,
     statements: &Vec<LabeledConcurrentStatement>,
     instances_list: &mut Vec<InstanceDescription>,
+    priority_trailing: bool,
 ) -> Result<(), String> {
     for statement in statements {
         // for every concurrent statement holding other concurrent statements, go through them
         match &statement.statement.item {
             Block(block_statement) => {
-                process_concurrent_statements(tokens, &block_statement.statements, instances_list)?;
+                process_concurrent_statements(
+                    tokens,
+                    &block_statement.statements,
+                    instances_list,
+                    priority_trailing,
+                )?;
             }
 
             ForGenerate(for_generate_statement) => {
@@ -75,6 +89,7 @@ fn process_concurrent_statements(
                     tokens,
                     &for_generate_statement.body.statements,
                     instances_list,
+                    priority_trailing,
                 )?;
             }
 
@@ -84,10 +99,16 @@ fn process_concurrent_statements(
                         tokens,
                         &conditional.item.statements,
                         instances_list,
+                        priority_trailing,
                     )?;
                 }
                 if let Some(body) = &if_generate_statement.conds.else_item {
-                    process_concurrent_statements(tokens, &body.0.statements, instances_list)?;
+                    process_concurrent_statements(
+                        tokens,
+                        &body.0.statements,
+                        instances_list,
+                        priority_trailing,
+                    )?;
                 }
             }
 
@@ -97,13 +118,19 @@ fn process_concurrent_statements(
                         tokens,
                         &alternative.item.statements,
                         instances_list,
+                        priority_trailing,
                     )?;
                 }
             }
 
             // we found an instantiation. Decode it and add it to the list
             Instance(instance_statement) => {
-                instances_list.push(find_instance(tokens, &statement.label, instance_statement)?);
+                instances_list.push(find_instance(
+                    tokens,
+                    &statement.label,
+                    instance_statement,
+                    priority_trailing,
+                )?);
             }
 
             _ => {}
@@ -117,16 +144,21 @@ fn find_instance(
     tokens: &Vec<Token>,
     label: &WithDecl<Option<Ident>>,
     instance_statement: &InstantiationStatement,
+    priority_trailing: bool,
 ) -> Result<InstanceDescription, String> {
     match &instance_statement.unit {
-        InstantiatedUnit::Component(component) => {
-            decode_instance(tokens, label, instance_statement, component)
-        }
+        InstantiatedUnit::Component(component) => decode_instance(
+            tokens,
+            label,
+            instance_statement,
+            component,
+            priority_trailing,
+        ),
         InstantiatedUnit::Entity(entity, _) => {
-            decode_instance(tokens, label, instance_statement, entity)
+            decode_instance(tokens, label, instance_statement, entity, priority_trailing)
         }
         InstantiatedUnit::Configuration(config) => {
-            decode_instance(tokens, label, instance_statement, config)
+            decode_instance(tokens, label, instance_statement, config, priority_trailing)
         }
     }
 }
@@ -137,14 +169,19 @@ fn decode_instance(
     label_decl: &WithDecl<Option<Ident>>,
     instance_statement: &InstantiationStatement,
     name: &WithTokenSpan<Name>,
+    priority_trailing: bool,
 ) -> Result<InstanceDescription, String> {
     let label = match &label_decl.tree {
         Some(item) => item.to_string(),
         None => String::new(),
     };
     let entity = name.item.to_string();
-    let description =
-        find_object_description(tokens, instance_statement.get_start_token(), false, false);
+    let description = find_object_description(
+        tokens,
+        instance_statement.get_start_token(),
+        priority_trailing,
+        false,
+    );
 
     let generics_map = get_map(&instance_statement.generic_map);
     let ports_map = get_map(&instance_statement.port_map);
@@ -200,7 +237,7 @@ mod tests {
     #[test]
     fn test_instances() {
         let design = parse_test_file();
-        let instances = get_instances(design).unwrap();
+        let instances = get_instances(design, false).unwrap();
 
         // check the returned list
         assert_eq!(instances.len(), 1);
@@ -245,15 +282,17 @@ fn get_instances_list(
     file_name: &[u8],
     vhdl_standard: &[u8],
     contents: &[u8],
+    comment_priority: &[u8],
 ) -> Result<Vec<u8>, String> {
     let id = decode_typst_arg_id(id)?;
     let file_name = decode_typst_arg(file_name)?;
     let vhdl_standard = decode_typst_arg(vhdl_standard)?;
     let contents = decode_typst_arg(contents)?;
+    let priority_trailing = decode_typst_arg(comment_priority)? == "trailing";
 
     let designfile = get_parsed(id, file_name, vhdl_standard, contents)?;
 
-    let instances = get_instances(designfile)?;
+    let instances = get_instances(designfile, priority_trailing)?;
 
     encode_typst_return(&instances)
 }

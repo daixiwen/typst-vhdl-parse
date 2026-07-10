@@ -1,7 +1,7 @@
 pub mod comments;
 pub mod declarations;
-pub mod fsm;
 pub mod entity_declaration;
+pub mod fsm;
 pub mod instances;
 pub mod parse_store;
 
