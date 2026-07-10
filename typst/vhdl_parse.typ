@@ -52,12 +52,14 @@
   assert(("trailing", "leading").contains(comment_priority), message: "comment priority must be \"trailing\" or \"leading\"")
 
   // call the plugin and return the results
-  return cbor(parsed_file.plugin.get_port_list(
+  let entity_declaration = cbor(parsed_file.plugin.get_entity_declaration_struct(
     bytes(parsed_file.id), 
     parsed_file.orig_fname, 
     parsed_file.orig_vhdl, 
     parsed_file.orig_contents, 
-    bytes(comment_priority)))
+    bytes(comment_priority)));
+
+  return entity_declaration.ports 
 }
 
 /// genericlist: returns the generics list from the first entity found in the parsed file
@@ -80,12 +82,14 @@
   assert(("trailing", "leading").contains(comment_priority), message: "comment priority must be \"trailing\" or \"leading\"")
 
   // call the plugin and return the results
-  return cbor(parsed_file.plugin.get_generic_list(
+  let entity_declaration = cbor(parsed_file.plugin.get_entity_declaration_struct(
     bytes(parsed_file.id), 
     parsed_file.orig_fname, 
     parsed_file.orig_vhdl, 
     parsed_file.orig_contents, 
     bytes(comment_priority)))
+
+  return entity_declaration.generics
 }
 
 /// fsm: returns information about a state machine found in the parsed file

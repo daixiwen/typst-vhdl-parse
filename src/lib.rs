@@ -1,10 +1,9 @@
 pub mod comments;
 pub mod declarations;
 pub mod fsm;
-pub mod generic_list;
+pub mod entity_declaration;
 pub mod instances;
 pub mod parse_store;
-pub mod port_list;
 
 use serde::{Serialize, de::DeserializeOwned};
 
