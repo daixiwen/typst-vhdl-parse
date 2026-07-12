@@ -28,11 +28,24 @@ end entity test;
 
 architecture rtl of test is
 
-  type fsm_t is (reset, idle, read_input, write_output);
+    -- enumeration type for the FSM
+  type fsm_t is (
+    reset, -- reset, initial state
+    idle,  -- state when not doing anything 
+    read_input, -- check what's on the inputs
+    write_output); -- do something on the outputs
 
+    -- a wrapper around the fsm type to test record element access in FSM detection
   type fsm_wrapper_t is record
+      -- the actual fsm type
     state : fsm_t;
   end record;
+
+    -- a subtype
+  subtype byte_t is std_logic_vector(7 downto 0);
+
+    -- an array
+  type matrix_t is array (31 downto 0, 7 downto 0) of byte_t;
 
     -- state machine signal 
   signal fsm: fsm_wrapper_t;
