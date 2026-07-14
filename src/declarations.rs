@@ -1,7 +1,13 @@
 use serde::Serialize;
 use vhdl_lang::{
-    HasTokenSpan, ast::{
-        AnyDesignUnit, AnySecondaryUnit, Declaration::{Object,Type}, DesignFile, ObjectClass::{Constant, Signal}, TypeDefinition::{Enumeration,Array, Record, Subtype},
+    HasTokenSpan, Token,
+    ast::{
+        AnyDesignUnit, AnyPrimaryUnit, AnySecondaryUnit,
+        Declaration::{self, Object, Type},
+        DesignFile,
+        ObjectClass::{Constant, Signal},
+        TypeDefinition::{Array, Enumeration, Record, Subtype},
+        token_range::WithTokenSpan,
     },
 };
 
@@ -40,7 +46,7 @@ pub struct TypeDescription {
     /// type definition
     pub definition: TypeDefinition,
     /// type description (comment)
-    pub description: Option<String>
+    pub description: Option<String>,
 }
 
 /// Describes a type definition
@@ -49,7 +55,7 @@ pub enum TypeDefinition {
     Enumeration(Vec<TypeDefinitionEnumElement>),
     Array(TypeDefinitionArray),
     Record(Vec<TypeDefinitionRecordElement>),
-    SubType(TypeDefinitionSubtype)
+    SubType(TypeDefinitionSubtype),
 }
 
 /// Describes an enumeration element
@@ -58,7 +64,7 @@ pub struct TypeDefinitionEnumElement {
     /// name of the enum element
     pub element_name: String,
     /// description (comment)
-    pub description: Option<String>
+    pub description: Option<String>,
 }
 
 /// Describes an array type definition
@@ -67,7 +73,7 @@ pub struct TypeDefinitionArray {
     /// array range
     pub range: String,
     /// array element type
-    pub subtype: String
+    pub subtype: String,
 }
 
 /// Describes a record element
@@ -78,7 +84,7 @@ pub struct TypeDefinitionRecordElement {
     /// type of the record element
     pub element_type: String,
     /// description (comment)
-    pub description: Option<String>
+    pub description: Option<String>,
 }
 
 /// Describes a subtype
@@ -105,131 +111,168 @@ pub fn get_declarations(
     design: DesignFile,
     priority_trailing: bool,
 ) -> Result<Declarations, String> {
+    // loop through architectures or packages
+    for (tokens, design_unit) in &design.design_units {
+        match design_unit {
+            AnyDesignUnit::Secondary(AnySecondaryUnit::Architecture(architecture)) => {
+                return explore_declarations(&architecture.decl, tokens, priority_trailing);
+            }
+            AnyDesignUnit::Primary(AnyPrimaryUnit::Package(package)) => {
+                return explore_declarations(&package.decl, tokens, priority_trailing);
+            }
+            _ => {}
+        }
+    }
+
+    Err("no architecture or package found".to_owned())
+}
+
+/// go through a list of declarations
+fn explore_declarations(
+    declarations: &Vec<WithTokenSpan<Declaration>>,
+    tokens: &Vec<Token>,
+    priority_trailing: bool,
+) -> Result<Declarations, String> {
     let mut signals_list: Vec<ObjectDescription> = Vec::default();
     let mut constants_list: Vec<ObjectDescription> = Vec::default();
     let mut types_list: Vec<TypeDescription> = Vec::default();
 
-    // loop through architectures
-    for (tokens, design_unit) in &design.design_units {
-        if let AnyDesignUnit::Secondary(AnySecondaryUnit::Architecture(architecture)) = design_unit
-        {
-            // loop through declarations in the architecture
-            for declaration in &architecture.decl {
-                match &declaration.item {
-                    Object(object_declaration) => {
-                        // extract details about the objects
-                        let object_type = object_declaration.subtype_indication.type_mark.to_string();
-                        let constraint = object_declaration
-                            .subtype_indication
-                            .constraint
-                            .as_ref()
-                            .map(|constraint| constraint.to_string());
-                        let expression = object_declaration
-                            .expression
-                            .as_ref()
-                            .map(|e| e.to_string());
-                        let description = find_object_description(
-                            tokens,
-                            declaration.get_start_token(),
-                            priority_trailing,
-                            false,
-                        );
+    for declaration in declarations {
+        match &declaration.item {
+            Object(object_declaration) => {
+                // extract details about the objects
+                let object_type = object_declaration.subtype_indication.type_mark.to_string();
+                let constraint = object_declaration
+                    .subtype_indication
+                    .constraint
+                    .as_ref()
+                    .map(|constraint| constraint.to_string());
+                let expression = object_declaration
+                    .expression
+                    .as_ref()
+                    .map(|e| e.to_string());
+                let description = find_object_description(
+                    tokens,
+                    declaration.get_start_token(),
+                    priority_trailing,
+                    false,
+                );
 
-                        // creates one ObjectDescription for each object
-                        let mut objects_list: Vec<ObjectDescription> = object_declaration
-                            .idents
-                            .iter()
-                            .map(|ident| ObjectDescription {
-                                name: ident.tree.item.to_string(),
-                                object_type: object_type.clone(),
-                                constraint: constraint.clone(),
-                                expression: expression.clone(),
-                                description: description.clone(),
-                            })
-                            .collect();
+                // creates one ObjectDescription for each object
+                let mut objects_list: Vec<ObjectDescription> = object_declaration
+                    .idents
+                    .iter()
+                    .map(|ident| ObjectDescription {
+                        name: ident.tree.item.to_string(),
+                        object_type: object_type.clone(),
+                        constraint: constraint.clone(),
+                        expression: expression.clone(),
+                        description: description.clone(),
+                    })
+                    .collect();
 
-                        // add the list to the correct list, depending on whether it's a signal or a constant
-                        match object_declaration.class {
-                            Signal => {
-                                signals_list.append(&mut objects_list);
-                            }
-                            Constant => {
-                                constants_list.append(&mut objects_list);
-                            }
-                            _ => {}
-                        }
-                    },
-                    Type(type_declaration) => {
-                        
-                        let type_name = type_declaration.ident.to_string();
-
-                        // depending on the kind of type declaration, make the relevant description structure
-                        let extracted_definition = match &type_declaration.def {
-                            Enumeration(enumerations) => {
-                                Some(("enumeration", TypeDefinition::Enumeration(enumerations.iter().map(|e| 
-                                    TypeDefinitionEnumElement { 
-                                        element_name: e.to_string(), 
-                                        description: find_object_description(
-                                            tokens,
-                                            e.get_start_token(),
-                                            priority_trailing,
-                                            false,
-                                        ) }
-                                    ).collect())))
-                            },
-                            Array(indices, _, subtype) => {
-                                let indices_str : Vec<String> = indices.iter().map(|index| index.to_string()).collect();
-
-                                Some(("array", TypeDefinition::Array(TypeDefinitionArray { range: indices_str.join(","), subtype: subtype.to_string() })))
-                            },
-                            Record(elements) => {
-                                // each element declaration can be in fact several elements, because you can have more than one with the same type
-                                // so we need two level of iterators
-                                Some(("record", TypeDefinition::Record(elements.iter().map(|e| {
-                                    let element_type = e.subtype.to_string();
-                                    let element_description = find_object_description(
-                                                tokens,
-                                                e.get_start_token(),
-                                                priority_trailing,
-                                                false,
-                                            );
-
-                                    e.idents.iter().map(move |f|
-                                        TypeDefinitionRecordElement {
-                                            element_name: f.to_string(),
-                                            element_type: element_type.clone(),
-                                            description: element_description.clone()
-                                        }
-                                    )}
-                                ).flatten().collect())))
-                            },
-                            Subtype(subtype) => {
-                                Some(("subtype", TypeDefinition::SubType(TypeDefinitionSubtype { 
-                                    subtype: subtype.type_mark.to_string(), 
-                                    constraint: subtype.constraint.as_ref().map(|constraint| constraint.to_string()) })))
-                            },
-                            _ => None
-                        };
-
-                        // add the extracted type to the list
-                        if let Some((type_kind, type_definition)) = extracted_definition {
-                            types_list.push(TypeDescription { 
-                                name: type_name, 
-                                kind: type_kind.to_owned(), 
-                                definition: type_definition, 
-                                description: find_object_description(
-                                                tokens,
-                                                type_declaration.get_start_token(),
-                                                priority_trailing,
-                                                false,
-                                            )
-                                }
-                            )
-                        }
+                // add the list to the correct list, depending on whether it's a signal or a constant
+                match object_declaration.class {
+                    Signal => {
+                        signals_list.append(&mut objects_list);
+                    }
+                    Constant => {
+                        constants_list.append(&mut objects_list);
                     }
                     _ => {}
                 }
             }
+            Type(type_declaration) => {
+                let type_name = type_declaration.ident.to_string();
+
+                // depending on the kind of type declaration, make the relevant description structure
+                let extracted_definition = match &type_declaration.def {
+                    Enumeration(enumerations) => Some((
+                        "enumeration",
+                        TypeDefinition::Enumeration(
+                            enumerations
+                                .iter()
+                                .map(|e| TypeDefinitionEnumElement {
+                                    element_name: e.to_string(),
+                                    description: find_object_description(
+                                        tokens,
+                                        e.get_start_token(),
+                                        priority_trailing,
+                                        false,
+                                    ),
+                                })
+                                .collect(),
+                        ),
+                    )),
+                    Array(indices, _, subtype) => {
+                        let indices_str: Vec<String> =
+                            indices.iter().map(|index| index.to_string()).collect();
+
+                        Some((
+                            "array",
+                            TypeDefinition::Array(TypeDefinitionArray {
+                                range: indices_str.join(","),
+                                subtype: subtype.to_string(),
+                            }),
+                        ))
+                    }
+                    Record(elements) => {
+                        // each element declaration can be in fact several elements, because you can have more than one with the same type
+                        // so we need two level of iterators
+                        Some((
+                            "record",
+                            TypeDefinition::Record(
+                                elements
+                                    .iter()
+                                    .map(|e| {
+                                        let element_type = e.subtype.to_string();
+                                        let element_description = find_object_description(
+                                            tokens,
+                                            e.get_start_token(),
+                                            priority_trailing,
+                                            false,
+                                        );
+
+                                        e.idents.iter().map(move |f| TypeDefinitionRecordElement {
+                                            element_name: f.to_string(),
+                                            element_type: element_type.clone(),
+                                            description: element_description.clone(),
+                                        })
+                                    })
+                                    .flatten()
+                                    .collect(),
+                            ),
+                        ))
+                    }
+                    Subtype(subtype) => Some((
+                        "subtype",
+                        TypeDefinition::SubType(TypeDefinitionSubtype {
+                            subtype: subtype.type_mark.to_string(),
+                            constraint: subtype
+                                .constraint
+                                .as_ref()
+                                .map(|constraint| constraint.to_string()),
+                        }),
+                    )),
+                    _ => None,
+                };
+
+                // add the extracted type to the list
+                if let Some((type_kind, type_definition)) = extracted_definition {
+                    types_list.push(TypeDescription {
+                        name: type_name,
+                        kind: type_kind.to_owned(),
+                        definition: type_definition,
+                        description: find_object_description(
+                            tokens,
+                            type_declaration.get_start_token(),
+                            priority_trailing,
+                            false,
+                        ),
+                    })
+                }
+            }
+            _ => {}
         }
     }
 
@@ -248,6 +291,16 @@ mod tests {
 
     fn parse_test_file() -> DesignFile {
         let contents = std::fs::read_to_string("test/test.vhd").unwrap();
+        let parser = VHDLParser::new(VHDLStandard::VHDL2008);
+        let mut diagnostics = Vec::new();
+        parser.parse_design_source(
+            &Source::inline(Path::new("test.vhd"), &contents),
+            &mut diagnostics,
+        )
+    }
+
+    fn parse_test_package() -> DesignFile {
+        let contents = std::fs::read_to_string("test/test_pkg.vhd").unwrap();
         let parser = VHDLParser::new(VHDLStandard::VHDL2008);
         let mut diagnostics = Vec::new();
         parser.parse_design_source(
@@ -310,18 +363,33 @@ mod tests {
         let fsm_type = types.get(0).unwrap();
         assert_eq!(fsm_type.name, "fsm_t");
         assert_eq!(fsm_type.kind, "enumeration");
-        assert_eq!(fsm_type.description, Some("enumeration type for the FSM".to_owned()));
+        assert_eq!(
+            fsm_type.description,
+            Some("enumeration type for the FSM".to_owned())
+        );
 
         if let TypeDefinition::Enumeration(enumeration) = &fsm_type.definition {
             assert_eq!(enumeration.len(), 4);
             assert_eq!(enumeration.get(0).unwrap().element_name, "reset");
-            assert_eq!(enumeration.get(0).unwrap().description, Some("reset, initial state".to_owned()));
+            assert_eq!(
+                enumeration.get(0).unwrap().description,
+                Some("reset, initial state".to_owned())
+            );
             assert_eq!(enumeration.get(1).unwrap().element_name, "idle");
-            assert_eq!(enumeration.get(1).unwrap().description, Some("state when not doing anything".to_owned()));
+            assert_eq!(
+                enumeration.get(1).unwrap().description,
+                Some("state when not doing anything".to_owned())
+            );
             assert_eq!(enumeration.get(2).unwrap().element_name, "read_input");
-            assert_eq!(enumeration.get(2).unwrap().description, Some("check what's on the inputs".to_owned()));
+            assert_eq!(
+                enumeration.get(2).unwrap().description,
+                Some("check what's on the inputs".to_owned())
+            );
             assert_eq!(enumeration.get(3).unwrap().element_name, "write_output");
-            assert_eq!(enumeration.get(3).unwrap().description, Some("do something on the outputs".to_owned()));
+            assert_eq!(
+                enumeration.get(3).unwrap().description,
+                Some("do something on the outputs".to_owned())
+            );
         } else {
             panic!("wrong type definition")
         }
@@ -330,13 +398,22 @@ mod tests {
         let fsm_wrapper_type = types.get(1).unwrap();
         assert_eq!(fsm_wrapper_type.name, "fsm_wrapper_t");
         assert_eq!(fsm_wrapper_type.kind, "record");
-        assert_eq!(fsm_wrapper_type.description, Some("a wrapper around the fsm type to test record element access in FSM detection".to_owned()));
+        assert_eq!(
+            fsm_wrapper_type.description,
+            Some(
+                "a wrapper around the fsm type to test record element access in FSM detection"
+                    .to_owned()
+            )
+        );
 
         if let TypeDefinition::Record(record) = &fsm_wrapper_type.definition {
             assert_eq!(record.len(), 1);
             assert_eq!(record.get(0).unwrap().element_name, "state");
             assert_eq!(record.get(0).unwrap().element_type, "fsm_t");
-            assert_eq!(record.get(0).unwrap().description, Some("the actual fsm type".to_owned()));
+            assert_eq!(
+                record.get(0).unwrap().description,
+                Some("the actual fsm type".to_owned())
+            );
         } else {
             panic!("wrong type definition")
         }
@@ -366,9 +443,35 @@ mod tests {
         } else {
             panic!("wrong type definition")
         }
-
     }
 
+    #[test]
+    fn test_types_in_package() {
+        let design = parse_test_package();
+        let types = get_declarations(design, false).unwrap().types;
+
+        // check the types list
+        assert_eq!(types.len(), 1);
+
+        // check the fsm type
+        let status_type = types.get(0).unwrap();
+        assert_eq!(status_type.name, "test_status_t");
+        assert_eq!(status_type.kind, "enumeration");
+        assert_eq!(
+            status_type.description,
+            Some("an enumeration type without comments on each element".to_owned())
+        );
+
+        if let TypeDefinition::Enumeration(enumeration) = &status_type.definition {
+            assert_eq!(enumeration.len(), 2);
+            assert_eq!(enumeration.get(0).unwrap().element_name, "working");
+            assert_eq!(enumeration.get(0).unwrap().description, None);
+            assert_eq!(enumeration.get(1).unwrap().element_name, "not_working");
+            assert_eq!(enumeration.get(1).unwrap().description, None);
+        } else {
+            panic!("wrong type definition")
+        }
+    }
 }
 
 /// typst plugin function to find the architectures in a file and return a structure with its constants and signals
