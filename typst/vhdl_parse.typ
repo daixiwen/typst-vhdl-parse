@@ -361,3 +361,45 @@
 
   return declarations.signals
 }
+
+/// typeslist: returns the types list from the architecture in the parsed file
+///
+/// - parsed_file (struct):      The parsed file object, as returned by parse() 
+/// - comment_priority (string): (optional) override the default comment priority, either "leading" or "trailing" 
+/// 
+/// -> an array of dictionaries, with in each item:
+///    - name (string):                          the type name
+///    - kind (string):                          the type kind: "enumeration", "record", "subtype" or "array"
+///    - description (string or none):           a comment describing the type
+///    - definition:                             a structure with the type definition. The structure depends on the type kind
+///      - Enumeration: an array of dictionaries, with for each element:
+///        - element_name (string):              the enumeration element name
+///        - description (string or none):       a comment describing the element
+///      - Record: an array of dictionaries, with for each element:
+///        - element_name (string):              the record element name
+///        - element_tyoe (string):              the record element type
+///        - description (string or none):       a comment describing the record element
+///      - Subtype: a dictionary with the following elements:
+///        - subtype (string):                   the type name
+///        - constraint (string or none):        the constraint (x downto y)
+///      - Array: a dictionary with the following elements:
+///        - range (string):                     the array range(s)
+///        - subtype (string):                   the array element type
+#let typeslist(parsed_file, comment_priority : none) = {
+  // arguments check and conversion
+  assert(type(parsed_file) == dictionary, message: "parsed_file must be the return value from the parse() function")
+  if comment_priority == none {
+    comment_priority = parsed_file.comment_priority
+  }
+  assert(("trailing", "leading").contains(comment_priority), message: "comment priority must be \"trailing\" or \"leading\"")
+
+  // call the plugin and return the results
+  let declarations = cbor(parsed_file.plugin.get_declarations_struct(
+    bytes(parsed_file.id), 
+    parsed_file.orig_fname, 
+    parsed_file.orig_vhdl, 
+    parsed_file.orig_contents,
+    bytes(comment_priority)))
+
+  return declarations.types
+}

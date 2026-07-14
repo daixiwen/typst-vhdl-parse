@@ -140,3 +140,15 @@ Diagram:
         ( [#entry.name], [#{entry.object_type}#{entry.constraint}], [#entry.description], [#entry.expression])
     }
 )
+
+= Types
+
+#let types = vhdl_parse.typeslist(parsed_file)
+
+#table(
+    columns: (auto, auto, 1fr),
+    table.header([name], [kind], [description]),
+    ..for entry in types {
+        ( [#entry.name], [#entry.kind], [#entry.description] )
+    }
+)
