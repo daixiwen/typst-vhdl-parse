@@ -198,7 +198,7 @@ fn explore_declarations(
                                         tokens,
                                         e.get_start_token(),
                                         priority_trailing,
-                                        false,
+                                        true,
                                     ),
                                 })
                                 .collect(),
@@ -230,7 +230,7 @@ fn explore_declarations(
                                             tokens,
                                             e.get_start_token(),
                                             priority_trailing,
-                                            false,
+                                            true,
                                         );
 
                                         e.idents.iter().map(move |f| TypeDefinitionRecordElement {
@@ -267,7 +267,7 @@ fn explore_declarations(
                             tokens,
                             type_declaration.get_start_token(),
                             priority_trailing,
-                            false,
+                            true,
                         ),
                     })
                 }
@@ -304,7 +304,7 @@ mod tests {
         let parser = VHDLParser::new(VHDLStandard::VHDL2008);
         let mut diagnostics = Vec::new();
         parser.parse_design_source(
-            &Source::inline(Path::new("test.vhd"), &contents),
+            &Source::inline(Path::new("test_pkg.vhd"), &contents),
             &mut diagnostics,
         )
     }
