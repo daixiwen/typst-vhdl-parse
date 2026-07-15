@@ -1,106 +1,127 @@
 #let plug = plugin("typst_vhdl_parse.wasm")
 
-/// Parse a VHDL file
+/// Parses a VHDL file
 ///
-/// - file_name (string):                  The VHD file name
-/// - contents (string or bytes):          The VHDL code 
-/// - vhdl_variant (string or number):     (optional) the VHDL variant. Default: 2008
-/// - comment_priority (string)            (optional) the default comment priority. Either "leading" or "trailing". Default "trailing"
+/// The return value is a dictionary, used as parameter in the other functions to extract information
+/// from the parsed VHDL file. The "messages" element in the returned dictionary is a list of warnings 
+/// or errors from the parser.
 /// 
-/// -> a parsed file object (dictionary). The "messages" item is a list of warnings or errors from the parser
-#let parse(file_name, contents, vhdl_variant : 2008, comment_priority : "trailing") = {
+/// *Example*
+/// 
+/// ```typ
+/// #let parsed-file = vhdl-parse.parse("test.vhd", read("test.vhd"))
+///
+/// Messages from the parser:
+///
+/// #for message in parsed-file.messages {
+///  [ - #message ]
+///}
+/// 
+/// ```
+/// 
+/// -> dictionary
+#let parse(
+      /// The VHDL file name -> string
+    file-name, 
+      /// The VHDL code -> string | bytes 
+    contents, 
+      /// (optional) The VHDL variant -> string | int
+    vhdl-variant : 2008, 
+      /// (opttional) The default comment priority. Either "leading" or "trailing" -> string
+    comment-priority : "trailing") = {
+
   // arguments chech and conversion
-  assert(type(file_name) == str, message: "file_name must be a string")
+  assert(type(file-name) == str, message: "file-name must be a string")
   if type(contents) == str {
     contents = bytes(contents)
   }
   assert(type(contents) == bytes, message: "contents must be a string or bytes")
-  vhdl_variant = str(vhdl_variant)
-  assert(("93", "08", "19", "1993", "2008", "2019").contains(vhdl_variant), message: "unknown VHDL variant")
-  assert(("trailing", "leading").contains(comment_priority), message: "comment priority must be \"trailing\" or \"leading\"")
+  vhdl-variant = str(vhdl-variant)
+  assert(("93", "08", "19", "1993", "2008", "2019").contains(vhdl-variant), message: "unknown VHDL variant")
+  assert(("trailing", "leading").contains(comment-priority), message: "comment priority must be \"trailing\" or \"leading\"")
 
   // parse the file and return the results
-  let result = cbor(plug.parse(bytes(file_name), bytes(vhdl_variant), contents))
+  let result = cbor(plug.parse(bytes(file-name), bytes(vhdl-variant), contents))
   return (
     "plugin":           plug,
     "id":               result.id,
     "messages":         result.messages,
-    "orig_fname":       bytes(file_name),
-    "orig_vhdl":        bytes(vhdl_variant),
-    "orig_contents":    contents,
-    "comment_priority": comment_priority
+    "orig-fname":       bytes(file-name),
+    "orig-vhdl":        bytes(vhdl-variant),
+    "orig-contents":    contents,
+    "comment-priority": comment-priority
   )
 }
 
 /// portlist: returns the portlist from the first entity found in the parsed file
 ///
-/// - parsed_file (struct):      The parsed filed object, as returned by parse() 
-/// - comment_priority (string): (optional) override the default comment priority, either "leading" or "trailing" 
+/// - parsed-file (struct):      The parsed filed object, as returned by parse() 
+/// - comment-priority (string): (optional) override the default comment priority, either "leading" or "trailing" 
 /// 
 /// -> an array of dictionaries, with in each item:
 ///    - name (string):                   the port name
 ///    - mode (string):                   the port mode (in, out, inout, buffer)
-///    - port_type (string):              the type of the port
+///    - port-type (string):              the type of the port
 ///    - constraint (string):             the type constraint, for example: "(15 downto 0)"
 ///    - description (string or none):    a comment describing the port
-#let portlist(parsed_file, comment_priority : none) = {
+#let portlist(parsed-file, comment-priority : none) = {
   // arguments check and conversion
-  assert(type(parsed_file) == dictionary, message: "parsed_file must be the return value from the parse() function")
-  if comment_priority == none {
-    comment_priority = parsed_file.comment_priority
+  assert(type(parsed-file) == dictionary, message: "parsed-file must be the return value from the parse() function")
+  if comment-priority == none {
+    comment-priority = parsed-file.comment-priority
   }
-  assert(("trailing", "leading").contains(comment_priority), message: "comment priority must be \"trailing\" or \"leading\"")
+  assert(("trailing", "leading").contains(comment-priority), message: "comment priority must be \"trailing\" or \"leading\"")
 
   // call the plugin and return the results
-  let entity_declaration = cbor(parsed_file.plugin.get_entity_declaration_struct(
-    bytes(parsed_file.id), 
-    parsed_file.orig_fname, 
-    parsed_file.orig_vhdl, 
-    parsed_file.orig_contents, 
-    bytes(comment_priority)));
+  let entity-declaration = cbor(parsed-file.plugin.get_entity_declaration_struct(
+    bytes(parsed-file.id), 
+    parsed-file.orig-fname, 
+    parsed-file.orig-vhdl, 
+    parsed-file.orig-contents, 
+    bytes(comment-priority)));
 
-  return entity_declaration.ports 
+  return entity-declaration.ports 
 }
 
 /// genericlist: returns the generics list from the first entity found in the parsed file
 ///
-/// - parsed_file (struct):      The parsed filed object, as returned by parse() 
-/// - comment_priority (string): (optional) override the default comment priority, either "leading" or "trailing" 
+/// - parsed-file (struct):      The parsed filed object, as returned by parse() 
+/// - comment-priority (string): (optional) override the default comment priority, either "leading" or "trailing" 
 /// 
 /// -> an array of dictionaries, with in each item:
 ///    - name (string):                   the port name
-///    - generic_type (string):           the type of the generic
+///    - generic-type (string):           the type of the generic
 ///    - constraint (string or none):     the type constraint, for example: "(15 downto 0)"
 ///    - description (string or none):    a comment describing the port
-///    - default_value (string or none):  the default contents of the generic
-#let genericlist(parsed_file, comment_priority : none) = {
+///    - default-value (string or none):  the default contents of the generic
+#let genericlist(parsed-file, comment-priority : none) = {
   // arguments check and conversion
-  assert(type(parsed_file) == dictionary, message: "parsed_file must be the return value from the parse() function")
-  if comment_priority == none {
-    comment_priority = parsed_file.comment_priority
+  assert(type(parsed-file) == dictionary, message: "parsed-file must be the return value from the parse() function")
+  if comment-priority == none {
+    comment-priority = parsed-file.comment-priority
   }
-  assert(("trailing", "leading").contains(comment_priority), message: "comment priority must be \"trailing\" or \"leading\"")
+  assert(("trailing", "leading").contains(comment-priority), message: "comment priority must be \"trailing\" or \"leading\"")
 
   // call the plugin and return the results
-  let entity_declaration = cbor(parsed_file.plugin.get_entity_declaration_struct(
-    bytes(parsed_file.id), 
-    parsed_file.orig_fname, 
-    parsed_file.orig_vhdl, 
-    parsed_file.orig_contents, 
-    bytes(comment_priority)))
+  let entity-declaration = cbor(parsed-file.plugin.get_entity_declaration_struct(
+    bytes(parsed-file.id), 
+    parsed-file.orig-fname, 
+    parsed-file.orig-vhdl, 
+    parsed-file.orig-contents, 
+    bytes(comment-priority)))
 
-  return entity_declaration.generics
+  return entity-declaration.generics
 }
 
 /// fsm: returns information about a state machine found in the parsed file
 ///
-/// - parsed_file (struct):           The parsed filed object, as returned by parse() 
-/// - read_variable_name (string):    The name of the signal or variable holding the current fsm state
-/// - write_variable_name (string):   (optional) The name of the signal or variable holding the next fsm state, if different from read_variable_name 
-/// - comment_priority (string):      (optional) override the default comment priority, either "leading" or "trailing" 
+/// - parsed-file (struct):           The parsed filed object, as returned by parse() 
+/// - read-variable-name (string):    The name of the signal or variable holding the current fsm state
+/// - write-variable-name (string):   (optional) The name of the signal or variable holding the next fsm state, if different from read-variable-name 
+/// - comment-priority (string):      (optional) override the default comment priority, either "leading" or "trailing" 
 ///
 /// -> a dictionary, with the following items:
-/// - default_state (string):         the default state (i.e. found in an "others" case)
+/// - default-state (string):         the default state (i.e. found in an "others" case)
 /// - states (array):                 an array of states, where each state is a dictionary with the following elements:
 ///   - name (string):                  the state name
 ///   - description (string or none):   the comment describing the state
@@ -108,264 +129,264 @@
 ///     - destination (string):           the state it is transitioned to
 ///     - consition (string)              the condition for the transition, if found
 ///     - description (string or none):   the comment describing the condition, if found
-#let fsm(parsed_file, read_variable_name, write_variable_name: none, comment_priority : none) = {
+#let fsm(parsed-file, read-variable-name, write-variable-name: none, comment-priority : none) = {
   // arguments check and conversion
-  assert(type(parsed_file) == dictionary, message: "parsed_file must be the return value from the parse() function")
-  assert(type(read_variable_name) == str, message: "read_variable_name must be a string")
-  if write_variable_name == none {
-    write_variable_name = read_variable_name
+  assert(type(parsed-file) == dictionary, message: "parsed-file must be the return value from the parse() function")
+  assert(type(read-variable-name) == str, message: "read-variable-name must be a string")
+  if write-variable-name == none {
+    write-variable-name = read-variable-name
   }
-  assert(type(write_variable_name) == str, message: "write_variable_name must be a string")
-  if comment_priority == none {
-    comment_priority = parsed_file.comment_priority
+  assert(type(write-variable-name) == str, message: "write-variable-name must be a string")
+  if comment-priority == none {
+    comment-priority = parsed-file.comment-priority
   }
-  assert(("trailing", "leading").contains(comment_priority), message: "comment priority must be \"trailing\" or \"leading\"")
+  assert(("trailing", "leading").contains(comment-priority), message: "comment priority must be \"trailing\" or \"leading\"")
 
   // build config structure
   let fsmconfig = (
-    "read_variable_name": read_variable_name,
-    "write_variable_name": write_variable_name,
-    "comment_priority_trailing": (comment_priority == "trailing")
+    "read-variable-name": read-variable-name,
+    "write-variable-name": write-variable-name,
+    "comment-priority-trailing": (comment-priority == "trailing")
   )
 
   // call plugin
-  return cbor(parsed_file.plugin.get_fsm_as_struct(
-    bytes(parsed_file.id), 
-    parsed_file.orig_fname, 
-    parsed_file.orig_vhdl, 
-    parsed_file.orig_contents, 
+  return cbor(parsed-file.plugin.get_fsm_as_struct(
+    bytes(parsed-file.id), 
+    parsed-file.orig-fname, 
+    parsed-file.orig-vhdl, 
+    parsed-file.orig-contents, 
     cbor.encode(fsmconfig)))
 }
 
-/// fsm_dot: returns a description of an FDM in the DOT format, ready to be drawn by the diagraph package1
+/// fsm-dot: returns a description of an FDM in the DOT format, ready to be drawn by the diagraph package1
 ///
-/// - parsed_file (struct):                    The parsed filed object, as returned by parse() 
-/// - read_variable_name (string):             The name of the signal or variable holding the current fsm state
-/// - write_variable_name (string):            (optional) the name of the signal or variable holding the next fsm state, if different from read_variable_name 
-/// - comment_priority (string):               (optional) override the default comment priority, either "leading" or "trailing" 
-/// - left_to_right(bool):                     (optional) if true, distribute the states left-to-right instead of top-to-bottom
-/// - font_name(string):                       (optional) the font to use (has to be accessible to Typst)
-/// - state_shape (string):                    (optional) the shape to use for states
-/// - state_background_color (color):          (optional) the background color for states
-/// - state_line_color (color):                (optional) the line color for states
-/// - state_text_color (color):                (optional) the color of text for states
-/// - state_font_size: (float):                (optional) the text size for states (in points)
-/// - default_state_shape (string):            (optional) the shape to use for the default state
-/// - default_state_background_color (string): (optional) the background color for the default state
-/// - default_state_line_color (String):       (optional) the line color for the default state
-/// - default_state_text_color (string):       (optional) the color of text for the default state
-/// - default_state_font_size (float):         (optional) the text size for the default state (in points)
-/// - transition_line_color (String):          (optional) the line color for the transitions
-/// - transition_text_color (string):          (optional) the color of text for the transitions
-/// - transition_font_size (float):            (optional) the text size for the transitions (in points)
+/// - parsed-file (struct):                    The parsed filed object, as returned by parse() 
+/// - read-variable-name (string):             The name of the signal or variable holding the current fsm state
+/// - write-variable-name (string):            (optional) the name of the signal or variable holding the next fsm state, if different from read-variable-name 
+/// - comment-priority (string):               (optional) override the default comment priority, either "leading" or "trailing" 
+/// - left-to-right(bool):                     (optional) if true, distribute the states left-to-right instead of top-to-bottom
+/// - font-name(string):                       (optional) the font to use (has to be accessible to Typst)
+/// - state-shape (string):                    (optional) the shape to use for states
+/// - state-background-color (color):          (optional) the background color for states
+/// - state-line-color (color):                (optional) the line color for states
+/// - state-text-color (color):                (optional) the color of text for states
+/// - state-font-size: (float):                (optional) the text size for states (in points)
+/// - default-state-shape (string):            (optional) the shape to use for the default state
+/// - default-state-background-color (string): (optional) the background color for the default state
+/// - default-state-line-color (String):       (optional) the line color for the default state
+/// - default-state-text-color (string):       (optional) the color of text for the default state
+/// - default-state-font-size (float):         (optional) the text size for the default state (in points)
+/// - transition-line-color (String):          (optional) the line color for the transitions
+/// - transition-text-color (string):          (optional) the color of text for the transitions
+/// - transition-font-size (float):            (optional) the text size for the transitions (in points)
 /// 
 /// -> a string with the DOT description 
-#let fsm_dot(parsed_file, 
-            read_variable_name, 
-            write_variable_name: none, 
-            comment_priority : none,
-            left_to_right: false,
-            font_name : "Helvetica,Arial,sans-serif",
-            state_shape: "ellipse",                  
-            state_background_color: white,       
-            state_line_color: black,             
-            state_text_color: black,             
-            state_font_size: 14,             
-            default_state_shape: "doublecircle",          
-            default_state_background_color: none,
-            default_state_line_color: none,     
-            default_state_text_color: none,     
-            default_state_font_size: none,                  
-            transition_line_color: none,     
-            transition_text_color: none,     
-            transition_font_size: none                  
+#let fsm-dot(parsed-file, 
+            read-variable-name, 
+            write-variable-name: none, 
+            comment-priority : none,
+            left-to-right: false,
+            font-name : "Helvetica,Arial,sans-serif",
+            state-shape: "ellipse",                  
+            state-background-color: white,       
+            state-line-color: black,             
+            state-text-color: black,             
+            state-font-size: 14,             
+            default-state-shape: "doublecircle",          
+            default-state-background-color: none,
+            default-state-line-color: none,     
+            default-state-text-color: none,     
+            default-state-font-size: none,                  
+            transition-line-color: none,     
+            transition-text-color: none,     
+            transition-font-size: none                  
             ) = {
   // arguments check and conversion
-  assert(type(parsed_file) == dictionary, message: "parsed_file must be the return value from the parse() function")
-  assert(type(read_variable_name) == str, message: "read_variable_name must be a string")
-  if write_variable_name == none {
-    write_variable_name = read_variable_name
+  assert(type(parsed-file) == dictionary, message: "parsed-file must be the return value from the parse() function")
+  assert(type(read-variable-name) == str, message: "read-variable-name must be a string")
+  if write-variable-name == none {
+    write-variable-name = read-variable-name
   }
-  assert(type(write_variable_name) == str, message: "write_variable_name must be a string")
-  if comment_priority == none {
-    comment_priority = parsed_file.comment_priority
+  assert(type(write-variable-name) == str, message: "write-variable-name must be a string")
+  if comment-priority == none {
+    comment-priority = parsed-file.comment-priority
   }
-  assert(("trailing", "leading").contains(comment_priority), message: "comment priority must be \"trailing\" or \"leading\"")
+  assert(("trailing", "leading").contains(comment-priority), message: "comment priority must be \"trailing\" or \"leading\"")
   let shapes = ( "box", "polygon", "ellipse", "oval", "circle", "point", "egg", "triangle", "plaintext", "plain", "diamond", "trapezium", "parallelogram", "house", "pentagon", "hexagon", "septagon", "octagon", "doublecircle", "doubleoctagon", "tripleoctagon", "invtriangle", "invtrapezium", "invhouse", "Mdiamond", "Msquare", "Mcircle", "rect", "rectangle", "square", "star", "none", "underline", "cylinder", "note", "tab", "folder", "box3d", "component", "promoter", "cds", "terminator", "utr", "primersite", "restrictionsite", "fivepoverhang", "threepoverhang", "noverhang", "assembly", "signature", "insulator", "ribosite", "rnastab", "proteasesite", "proteinstab", "rpromoter", "rarrow", "larrow", "lpromoter")
-  assert(shapes.contains(state_shape), message: "state_shape needs to be a valid shape type. See https://graphviz.org/doc/info/shapes.html")
-  assert(type(state_background_color) == color, message: "state_background_color needs to be a color")
-  assert(type(state_line_color) == color, message: "state_line_color needs to be a color")
-  assert(type(state_text_color) == color, message: "state_text_color needs to be a color")
-  if type(state_font_size) == int {
-    state_font_size = float(state_font_size)
+  assert(shapes.contains(state-shape), message: "state-shape needs to be a valid shape type. See https://graphviz.org/doc/info/shapes.html")
+  assert(type(state-background-color) == color, message: "state-background-color needs to be a color")
+  assert(type(state-line-color) == color, message: "state-line-color needs to be a color")
+  assert(type(state-text-color) == color, message: "state-text-color needs to be a color")
+  if type(state-font-size) == int {
+    state-font-size = float(state-font-size)
   }
-  assert(type(state_font_size) == float, message: "state_font_size needs to be a number")
-  assert(shapes.contains(default_state_shape), message: "default_state_shape needs to be a valid shape type. See https://graphviz.org/doc/info/shapes.html")
-  if default_state_background_color == none {
-    default_state_background_color = state_background_color
+  assert(type(state-font-size) == float, message: "state-font-size needs to be a number")
+  assert(shapes.contains(default-state-shape), message: "default-state-shape needs to be a valid shape type. See https://graphviz.org/doc/info/shapes.html")
+  if default-state-background-color == none {
+    default-state-background-color = state-background-color
   }
-  assert(type(default_state_background_color) == color, message: "default_state_background_color needs to be a color")
-  if default_state_line_color == none {
-    default_state_line_color = state_line_color
+  assert(type(default-state-background-color) == color, message: "default-state-background-color needs to be a color")
+  if default-state-line-color == none {
+    default-state-line-color = state-line-color
   }
-  assert(type(default_state_line_color) == color, message: "default_state_line_color needs to be a color")
-  if default_state_text_color == none {
-    default_state_text_color = state_text_color
+  assert(type(default-state-line-color) == color, message: "default-state-line-color needs to be a color")
+  if default-state-text-color == none {
+    default-state-text-color = state-text-color
   }
-  assert(type(default_state_text_color) == color, message: "default_state_text_color needs to be a color")
-  if default_state_font_size == none {
-    default_state_font_size = state_font_size
+  assert(type(default-state-text-color) == color, message: "default-state-text-color needs to be a color")
+  if default-state-font-size == none {
+    default-state-font-size = state-font-size
   }
-  if type(default_state_font_size) == int {
-    default_state_font_size = float(default_state_font_size)
+  if type(default-state-font-size) == int {
+    default-state-font-size = float(default-state-font-size)
   }
-  assert(type(default_state_font_size) == float, message: "default_state_font_size needs to be a number")
-  if transition_line_color == none {
-    transition_line_color = state_line_color
+  assert(type(default-state-font-size) == float, message: "default-state-font-size needs to be a number")
+  if transition-line-color == none {
+    transition-line-color = state-line-color
   }
-  assert(type(transition_line_color) == color, message: "transition_line_color needs to be a color")
-  if transition_text_color == none {
-    transition_text_color = state_text_color
+  assert(type(transition-line-color) == color, message: "transition-line-color needs to be a color")
+  if transition-text-color == none {
+    transition-text-color = state-text-color
   }
-  assert(type(transition_text_color) == color, message: "transition_text_color needs to be a color")
-  if transition_font_size == none {
-    transition_font_size = state_font_size
+  assert(type(transition-text-color) == color, message: "transition-text-color needs to be a color")
+  if transition-font-size == none {
+    transition-font-size = state-font-size
   }
-  if type(transition_font_size) == int {
-    transition_font_size = float(transition_font_size)
+  if type(transition-font-size) == int {
+    transition-font-size = float(transition-font-size)
   }
-  assert(type(transition_font_size) == float, message: "transition_font_size needs to be a number")
+  assert(type(transition-font-size) == float, message: "transition-font-size needs to be a number")
 
   // build config structures
   let fsmconfig = (
-    "read_variable_name": read_variable_name,
-    "write_variable_name": write_variable_name,
-    "comment_priority_trailing": (comment_priority == "trailing")
+    "read-variable-name": read-variable-name,
+    "write-variable-name": write-variable-name,
+    "comment-priority-trailing": (comment-priority == "trailing")
   )
   let fsmdotconfig = (
-    "left_to_right":                  left_to_right,
-    "font_name":                      font_name,
-    "state_shape":                    state_shape,
-    "state_background_color":         state_background_color.to-hex(),
-    "state_line_color":               state_line_color.to-hex(),
-    "state_text_color":               state_text_color.to-hex(),
-    "state_font_size":                state_font_size,
-    "default_state_shape":            default_state_shape,
-    "default_state_background_color": default_state_background_color.to-hex(),
-    "default_state_line_color":       default_state_line_color.to-hex(),
-    "default_state_text_color":       default_state_text_color.to-hex(),
-    "default_state_font_size":        default_state_font_size,
-    "transition_line_color":          transition_line_color.to-hex(),
-    "transition_text_color":          transition_text_color.to-hex(),
-    "transition_font_size":           transition_font_size,
+    "left-to-right":                  left-to-right,
+    "font-name":                      font-name,
+    "state-shape":                    state-shape,
+    "state-background-color":         state-background-color.to-hex(),
+    "state-line-color":               state-line-color.to-hex(),
+    "state-text-color":               state-text-color.to-hex(),
+    "state-font-size":                state-font-size,
+    "default-state-shape":            default-state-shape,
+    "default-state-background-color": default-state-background-color.to-hex(),
+    "default-state-line-color":       default-state-line-color.to-hex(),
+    "default-state-text-color":       default-state-text-color.to-hex(),
+    "default-state-font-size":        default-state-font-size,
+    "transition-line-color":          transition-line-color.to-hex(),
+    "transition-text-color":          transition-text-color.to-hex(),
+    "transition-font-size":           transition-font-size,
   )
 
   // call plugin
-  return cbor(parsed_file.plugin.get_fsm_as_dot(
-    bytes(parsed_file.id), 
-    parsed_file.orig_fname, 
-    parsed_file.orig_vhdl, 
-    parsed_file.orig_contents, 
+  return cbor(parsed-file.plugin.get_fsm_as_dot(
+    bytes(parsed-file.id), 
+    parsed-file.orig-fname, 
+    parsed-file.orig-vhdl, 
+    parsed-file.orig-contents, 
     cbor.encode(fsmconfig), 
     cbor.encode(fsmdotconfig)))
 }
 
 /// instanceslist: returns the instances list from the first entity found in the parsed file
 ///
-/// - parsed_file (struct):      The parsed file object, as returned by parse() 
-/// - comment_priority (string): (optional) override the default comment priority, either "leading" or "trailing" 
+/// - parsed-file (struct):      The parsed file object, as returned by parse() 
+/// - comment-priority (string): (optional) override the default comment priority, either "leading" or "trailing" 
 /// 
 /// -> an array of dictionaries, with in each item:
 ///    - label (string):                  the instantiation label
 ///    - entity (string):                 the entity being instantiated
 ///    - description (string or none):    a comment describing the instance
-///    - generics_map (array):            an array of generics
-///    - ports_map (array):               an array of ports
+///    - generics-map (array):            an array of generics
+///    - ports-map (array):               an array of ports
 /// 
 /// ports and generics are described by the following dictionary
 ///    - origin (string):                 name of the generic or port on the entity side
 ///    - expression (string):             the expression associated to the generic or port
-#let instanceslist(parsed_file, comment_priority : none) = {
+#let instanceslist(parsed-file, comment-priority : none) = {
   // arguments check and conversion
-  assert(type(parsed_file) == dictionary, message: "parsed_file must be the return value from the parse() function")
-  if comment_priority == none {
-    comment_priority = parsed_file.comment_priority
+  assert(type(parsed-file) == dictionary, message: "parsed-file must be the return value from the parse() function")
+  if comment-priority == none {
+    comment-priority = parsed-file.comment-priority
   }
-  assert(("trailing", "leading").contains(comment_priority), message: "comment priority must be \"trailing\" or \"leading\"")
+  assert(("trailing", "leading").contains(comment-priority), message: "comment priority must be \"trailing\" or \"leading\"")
 
   // call the plugin and return the results
-  return cbor(parsed_file.plugin.get_instances_list(
-    bytes(parsed_file.id), 
-    parsed_file.orig_fname, 
-    parsed_file.orig_vhdl, 
-    parsed_file.orig_contents, 
-    bytes(comment_priority)))
+  return cbor(parsed-file.plugin.get_instances_list(
+    bytes(parsed-file.id), 
+    parsed-file.orig-fname, 
+    parsed-file.orig-vhdl, 
+    parsed-file.orig-contents, 
+    bytes(comment-priority)))
 }
 
 /// constantslist: returns the constants list from the architecture in the parsed file
 ///
-/// - parsed_file (struct):      The parsed file object, as returned by parse() 
-/// - comment_priority (string): (optional) override the default comment priority, either "leading" or "trailing" 
+/// - parsed-file (struct):      The parsed file object, as returned by parse() 
+/// - comment-priority (string): (optional) override the default comment priority, either "leading" or "trailing" 
 /// 
 /// -> an array of dictionaries, with in each item:
 ///    - name (string):                   the constant name
-///    - object_type (string):            the constant type
+///    - object-type (string):            the constant type
 ///    - constraint (string or none):     the type constraint (x downto y)
 ///    - expression (string or none):     the constant value
 ///    - description (string or none):    a comment describing the constant
-#let constantslist(parsed_file, comment_priority : none) = {
+#let constantslist(parsed-file, comment-priority : none) = {
   // arguments check and conversion
-  assert(type(parsed_file) == dictionary, message: "parsed_file must be the return value from the parse() function")
-  if comment_priority == none {
-    comment_priority = parsed_file.comment_priority
+  assert(type(parsed-file) == dictionary, message: "parsed-file must be the return value from the parse() function")
+  if comment-priority == none {
+    comment-priority = parsed-file.comment-priority
   }
-  assert(("trailing", "leading").contains(comment_priority), message: "comment priority must be \"trailing\" or \"leading\"")
+  assert(("trailing", "leading").contains(comment-priority), message: "comment priority must be \"trailing\" or \"leading\"")
 
   // call the plugin and return the results
-  let declarations = cbor(parsed_file.plugin.get_declarations_struct(
-    bytes(parsed_file.id), 
-    parsed_file.orig_fname, 
-    parsed_file.orig_vhdl, 
-    parsed_file.orig_contents,
-    bytes(comment_priority)))
+  let declarations = cbor(parsed-file.plugin.get_declarations_struct(
+    bytes(parsed-file.id), 
+    parsed-file.orig-fname, 
+    parsed-file.orig-vhdl, 
+    parsed-file.orig-contents,
+    bytes(comment-priority)))
 
   return declarations.constants
 }
 
 /// signalslist: returns the signals list from the architecture in the parsed file
 ///
-/// - parsed_file (struct):      The parsed file object, as returned by parse() 
-/// - comment_priority (string): (optional) override the default comment priority, either "leading" or "trailing" 
+/// - parsed-file (struct):      The parsed file object, as returned by parse() 
+/// - comment-priority (string): (optional) override the default comment priority, either "leading" or "trailing" 
 /// 
 /// -> an array of dictionaries, with in each item:
 ///    - name (string):                   the constant name
-///    - object_type (string):            the constant type
+///    - object-type (string):            the constant type
 ///    - constraint (string or none):     the type constraint (x downto y)
 ///    - expression (string or none):     the constant value
 ///    - description (string or none):    a comment describing the constant
-#let signalslist(parsed_file, comment_priority : none) = {
+#let signalslist(parsed-file, comment-priority : none) = {
   // arguments check and conversion
-  assert(type(parsed_file) == dictionary, message: "parsed_file must be the return value from the parse() function")
-  if comment_priority == none {
-    comment_priority = parsed_file.comment_priority
+  assert(type(parsed-file) == dictionary, message: "parsed-file must be the return value from the parse() function")
+  if comment-priority == none {
+    comment-priority = parsed-file.comment-priority
   }
-  assert(("trailing", "leading").contains(comment_priority), message: "comment priority must be \"trailing\" or \"leading\"")
+  assert(("trailing", "leading").contains(comment-priority), message: "comment priority must be \"trailing\" or \"leading\"")
 
   // call the plugin and return the results
-  let declarations = cbor(parsed_file.plugin.get_declarations_struct(
-    bytes(parsed_file.id), 
-    parsed_file.orig_fname, 
-    parsed_file.orig_vhdl, 
-    parsed_file.orig_contents,
-    bytes(comment_priority)))
+  let declarations = cbor(parsed-file.plugin.get_declarations_struct(
+    bytes(parsed-file.id), 
+    parsed-file.orig-fname, 
+    parsed-file.orig-vhdl, 
+    parsed-file.orig-contents,
+    bytes(comment-priority)))
 
   return declarations.signals
 }
 
 /// typeslist: returns the types list from the architecture in the parsed file
 ///
-/// - parsed_file (struct):      The parsed file object, as returned by parse() 
-/// - comment_priority (string): (optional) override the default comment priority, either "leading" or "trailing" 
+/// - parsed-file (struct):      The parsed file object, as returned by parse() 
+/// - comment-priority (string): (optional) override the default comment priority, either "leading" or "trailing" 
 /// 
 /// -> an array of dictionaries, with in each item:
 ///    - name (string):                          the type name
@@ -373,11 +394,11 @@
 ///    - description (string or none):           a comment describing the type
 ///    - definition:                             a structure with the type definition. The structure depends on the type kind
 ///      - Enumeration: an array of dictionaries, with for each element:
-///        - element_name (string):              the enumeration element name
+///        - element-name (string):              the enumeration element name
 ///        - description (string or none):       a comment describing the element
 ///      - Record: an array of dictionaries, with for each element:
-///        - element_name (string):              the record element name
-///        - element_tyoe (string):              the record element type
+///        - element-name (string):              the record element name
+///        - element-tyoe (string):              the record element type
 ///        - description (string or none):       a comment describing the record element
 ///      - Subtype: a dictionary with the following elements:
 ///        - subtype (string):                   the type name
@@ -385,21 +406,21 @@
 ///      - Array: a dictionary with the following elements:
 ///        - range (string):                     the array range(s)
 ///        - subtype (string):                   the array element type
-#let typeslist(parsed_file, comment_priority : none) = {
+#let typeslist(parsed-file, comment-priority : none) = {
   // arguments check and conversion
-  assert(type(parsed_file) == dictionary, message: "parsed_file must be the return value from the parse() function")
-  if comment_priority == none {
-    comment_priority = parsed_file.comment_priority
+  assert(type(parsed-file) == dictionary, message: "parsed-file must be the return value from the parse() function")
+  if comment-priority == none {
+    comment-priority = parsed-file.comment-priority
   }
-  assert(("trailing", "leading").contains(comment_priority), message: "comment priority must be \"trailing\" or \"leading\"")
+  assert(("trailing", "leading").contains(comment-priority), message: "comment priority must be \"trailing\" or \"leading\"")
 
   // call the plugin and return the results
-  let declarations = cbor(parsed_file.plugin.get_declarations_struct(
-    bytes(parsed_file.id), 
-    parsed_file.orig_fname, 
-    parsed_file.orig_vhdl, 
-    parsed_file.orig_contents,
-    bytes(comment_priority)))
+  let declarations = cbor(parsed-file.plugin.get_declarations_struct(
+    bytes(parsed-file.id), 
+    parsed-file.orig-fname, 
+    parsed-file.orig-vhdl, 
+    parsed-file.orig-contents,
+    bytes(comment-priority)))
 
   return declarations.types
 }

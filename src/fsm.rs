@@ -50,6 +50,7 @@ pub struct FSMTransition {
 
 /// configuration to find the FSM and extract the information
 #[derive(Deserialize)]
+#[serde(rename_all = "kebab-case")]
 pub struct FSMConfig {
     /// name of the signal or variable read in the FSM (in the case statement)
     pub read_variable_name: String,
@@ -61,6 +62,7 @@ pub struct FSMConfig {
 
 /// configuration for DOT file generation
 #[derive(Deserialize)]
+#[serde(rename_all = "kebab-case")]
 pub struct FSMDotConfig {
     /// if true, place states left to right instead of top to bottom
     pub left_to_right: bool,
