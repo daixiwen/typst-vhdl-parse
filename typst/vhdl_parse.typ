@@ -2,20 +2,25 @@
 
 /// Parses a VHDL file
 ///
-/// The return value is a dictionary, used as parameter in the other functions to extract information
-/// from the parsed VHDL file. The "messages" element in the returned dictionary is a list of warnings 
-/// or errors from the parser.
+/// The return value is a dictionary, used as parameter in the other functions 
+/// to extract information from the parsed VHDL file. The `messages` element
+/// in the returned dictionary is a list of warnings or errors from the parser.
 /// 
 /// *Example*
 /// 
-/// ```typ
-/// #let parsed-file = vhdl-parse.parse("test.vhd", read("test.vhd"))
+/// ```example
+///<<<#let parsed-file = vhdl-parse.parse(
+///<<<    "test.vhd", 
+///<<<    read("test.vhd"))
 ///
-/// Messages from the parser:
+///Messages from the parser:
 ///
-/// #for message in parsed-file.messages {
-///  [ - #message ]
-///}
+///#if parsed-file.messages.len() == 0 [
+///   no messages
+/// ] else {
+///   for message in parsed-file.messages [ 
+///   - #message ]
+/// }
 /// 
 /// ```
 /// 
