@@ -28,7 +28,7 @@
 #let parse(
       /// The VHDL file name -> string
     file-name, 
-      /// The VHDL code -> string | bytes 
+      /// The VHDL code, usually the result of a `read` operation on the VHDL file -> string | bytes 
     contents, 
       /// (optional) The VHDL variant -> string | int
     vhdl-variant : 2008, 
@@ -58,18 +58,50 @@
   )
 }
 
-/// portlist: returns the portlist from the first entity found in the parsed file
-///
-/// - parsed-file (struct):      The parsed filed object, as returned by parse() 
-/// - comment-priority (string): (optional) override the default comment priority, either "leading" or "trailing" 
+/// Returns the portlist from the first entity found in the parsed file
+///    
+/// *Return structure*
 /// 
-/// -> an array of dictionaries, with in each item:
-///    - name (string):                   the port name
-///    - mode (string):                   the port mode (in, out, inout, buffer)
-///    - port-type (string):              the type of the port
-///    - constraint (string):             the type constraint, for example: "(15 downto 0)"
-///    - description (string or none):    a comment describing the port
-#let portlist(parsed-file, comment-priority : none) = {
+/// an array of dictionaries, each item having the following elements:
+/// 
+/// #dictionary-description((
+///  // elem name    elem type        elem description
+///   ("name",       "string",        "the port name"                                      ),
+///   ("mode",       "string",        "the port mode (in, out, inout, buffer)"             ),
+///   ("port-type",  "string",        "the VHDL type of the port"                          ),
+///   ("constraint", "string or none","the type constraint, for example: \"(15 downto 0)\""),
+///   ("description","string or none","a comment describing the port"                      ),
+///   ("expression", "string or none","the port default value"                             ),
+/// 
+/// 
+/// ))
+/// 
+/// *Example*
+///
+/// ```example 
+/// #let ports = vhdl-parse.port-list(
+///   parsed-file)
+/// 
+///>>> #set text(font: ("DejaVu Sans", "Arial", "Helvetica"))
+/// #table(
+///    columns: (2cm, 1.5cm, 4cm, 6cm),
+///    table.header([name], [mode], [type], [description]),
+///    ..for entry in ports {
+///     ( [#entry.name], 
+///       [#entry.mode], 
+///       [#{entry.port_type}#{entry.constraint}],
+///       [#entry.description])
+///     }
+/// )
+/// ```
+/// 
+/// -> array
+#let port-list(
+      /// The parsed file object, as returned by @parse -> dictionary
+    parsed-file, 
+      /// (optional) override the default comment priority, either "leading" or "trailing" -> string | none
+    comment-priority : none) = {
+
   // arguments check and conversion
   assert(type(parsed-file) == dictionary, message: "parsed-file must be the return value from the parse() function")
   if comment-priority == none {
