@@ -35,7 +35,7 @@
       /// (opttional) The default comment priority. Either "leading" or "trailing" -> string
     comment-priority : "trailing") = {
 
-  // arguments chech and conversion
+  // arguments check and conversion
   assert(type(file-name) == str, message: "file-name must be a string")
   if type(contents) == str {
     contents = bytes(contents)
@@ -65,13 +65,13 @@
 /// an array of dictionaries, each item having the following elements:
 /// 
 /// #dictionary-description((
-///  // elem name    elem type        elem description
-///   ("name",       "string",        "the port name"                                      ),
-///   ("mode",       "string",        "the port mode (in, out, inout, buffer)"             ),
-///   ("port-type",  "string",        "the VHDL type of the port"                          ),
-///   ("constraint", "string or none","the type constraint, for example: \"(15 downto 0)\""),
-///   ("description","string or none","a comment describing the port"                      ),
-///   ("expression", "string or none","the port default value"                             ),
+///  // elem name      elem type        elem description
+///   ("name",         "string",        "the port name"                                      ),
+///   ("mode",         "string",        "the port mode (in, out, inout, buffer)"             ),
+///   ("port-type",    "string",        "the VHDL type of the port"                          ),
+///   ("constraint",   "string or none","the type constraint, for example: \"(15 downto 0)\""),
+///   ("description",  "string or none","a comment describing the port"                      ),
+///   ("default-value","string or none","the port default value"                             ),
 /// 
 /// 
 /// ))
@@ -89,7 +89,7 @@
 ///    ..for entry in ports {
 ///     ( [#entry.name], 
 ///       [#entry.mode], 
-///       [#{entry.port_type}#{entry.constraint}],
+///       [#{entry.port-type}#{entry.constraint}],
 ///       [#entry.description])
 ///     }
 /// )
@@ -120,18 +120,49 @@
   return entity-declaration.ports 
 }
 
-/// genericlist: returns the generics list from the first entity found in the parsed file
-///
-/// - parsed-file (struct):      The parsed filed object, as returned by parse() 
-/// - comment-priority (string): (optional) override the default comment priority, either "leading" or "trailing" 
+/// Returns the generics list from the first entity found in the parsed file
 /// 
-/// -> an array of dictionaries, with in each item:
-///    - name (string):                   the port name
-///    - generic-type (string):           the type of the generic
-///    - constraint (string or none):     the type constraint, for example: "(15 downto 0)"
-///    - description (string or none):    a comment describing the port
-///    - default-value (string or none):  the default contents of the generic
-#let genericlist(parsed-file, comment-priority : none) = {
+/// *Return structure*
+/// 
+/// an array of dictionaries, each item having the following elements:
+/// 
+/// #dictionary-description((
+///  // elem name      elem type        elem description
+///   ("name",         "string",        "the generic name"                                   ),
+///   ("generic-type", "string",        "the VHDL type of the generic"                       ),
+///   ("constraint",   "string or none","the type constraint, for example: \"(15 downto 0)\""),
+///   ("description",  "string or none","a comment describing the generic"                   ),
+///   ("default-value","string or none","the generic default value"                          ),
+/// 
+/// 
+/// ))
+/// 
+/// *Example*
+///
+/// ```example 
+/// #let generics = vhdl-parse.generic-list(
+///   parsed-file)
+/// 
+///>>> #set text(font: ("DejaVu Sans", "Arial", "Helvetica"))
+/// #table(
+///    columns: (2cm, 4cm, 6cm, 2cm),
+///    table.header([name], [type], [description], [default]),
+///    ..for entry in generics {
+///     ( [#entry.name], 
+///       [#{entry.generic-type}#{entry.constraint}],
+///       [#entry.description],
+///       [#entry.default-value])
+///     }
+/// )
+/// ```
+/// 
+/// -> array
+#let generic-list(      
+      /// The parsed file object, as returned by @parse -> dictionary
+    parsed-file, 
+      /// (optional) override the default comment priority, either "leading" or "trailing" -> string | none
+    comment-priority : none) = {
+
   // arguments check and conversion
   assert(type(parsed-file) == dictionary, message: "parsed-file must be the return value from the parse() function")
   if comment-priority == none {
@@ -150,23 +181,64 @@
   return entity-declaration.generics
 }
 
-/// fsm: returns information about a state machine found in the parsed file
+/// Returns information about a state machine found in the parsed file
 ///
-/// - parsed-file (struct):           The parsed filed object, as returned by parse() 
-/// - read-variable-name (string):    The name of the signal or variable holding the current fsm state
-/// - write-variable-name (string):   (optional) The name of the signal or variable holding the next fsm state, if different from read-variable-name 
-/// - comment-priority (string):      (optional) override the default comment priority, either "leading" or "trailing" 
+/// *Return structure*
+/// 
+/// a dictionary with the following elements:
+/// 
+/// #dictionary-description((
+///  // elem name       elem type elem description
+///   ("default-state", "string", "the default state (i.e. found in an \"others\" case)"),
+///   ("states",        "array",  "an array of states"),
+/// ))
+/// 
+/// The `states` array contains dictionaries, with each item having the following elements:
+/// 
+/// #dictionary-description((
+///  // elem name     elem type         elem description
+///   ("name",        "string",         "the state name"),
+///   ("description", "string or none", "the comment describing the state"),
+///   ("transitions", "array",          "an array of transitions"),
+/// ))
+/// 
+/// The `transitions` arrays contain dictionaries, with each item having the following elements:
+/// #dictionary-description((
+///  // elem name     elem type         elem description
+///   ("destination", "string",         "the state it is transitioned to"),
+///   ("condition",   "string",         "the condition for the transition, if found or an empty string"),
+///   ("description", "string or none", "the comment describing the condition, if found"),
+///  ))
 ///
-/// -> a dictionary, with the following items:
-/// - default-state (string):         the default state (i.e. found in an "others" case)
-/// - states (array):                 an array of states, where each state is a dictionary with the following elements:
-///   - name (string):                  the state name
-///   - description (string or none):   the comment describing the state
-///   - transition (array):             an array of transitions, where each transition is a diciotnary with the following elements:
-///     - destination (string):           the state it is transitioned to
-///     - consition (string)              the condition for the transition, if found
-///     - description (string or none):   the comment describing the condition, if found
-#let fsm(parsed-file, read-variable-name, write-variable-name: none, comment-priority : none) = {
+/// *Example*
+///
+/// ```example 
+/// #let fsm = vhdl-parse.fsm(parsed-file,"fsm.state")
+/// 
+/// List of states:
+/// 
+/// >>> #set text(font: ("DejaVu Sans", "Arial", "Helvetica"))
+/// #table(
+///     columns: (3cm, 7cm),
+///     table.header([state], [description]),
+///     ..for state in fsm.states {
+///         ( [#state.name], [#state.description])
+///     }
+/// )
+/// 
+/// ```
+/// -> dictionary
+/// 
+#let fsm(
+      /// The parsed file object, as returned by @parse -> dictionary
+    parsed-file, 
+      /// The name of the signal or variable holding the current fsm state -> string
+    read-variable-name, 
+      /// (optional) The name of the signal or variable holding the next fsm state, if different from read-variable-name -> string | none
+    write-variable-name: none, 
+      /// (optional) override the default comment priority, either "leading" or "trailing" -> string | none
+    comment-priority : none) = {
+
   // arguments check and conversion
   assert(type(parsed-file) == dictionary, message: "parsed-file must be the return value from the parse() function")
   assert(type(read-variable-name) == str, message: "read-variable-name must be a string")
