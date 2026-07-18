@@ -14,6 +14,7 @@ wasm_minimal_protocol::initiate_protocol!();
 
 // Describes a single generic
 #[derive(Serialize)]
+#[serde(rename_all = "kebab-case")]
 pub struct GenericEntry {
     /// generic name
     pub name: String,
@@ -29,6 +30,7 @@ pub struct GenericEntry {
 
 /// Describes a single port
 #[derive(Serialize)]
+#[serde(rename_all = "kebab-case")]
 pub struct PortEntry {
     /// port name
     pub name: String,
