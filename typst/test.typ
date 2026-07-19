@@ -32,7 +32,7 @@ Messages from the parser:
     columns: (auto, auto, auto, 1fr),
     table.header([name],[type], [description], [default value]),
     ..for entry in generics {
-        ( [#entry.name], [#{entry.generic_type}#{entry.constraint}], [#entry.description], [#entry.default_value])
+        ( [#entry.name], [#{entry.generic-type}#{entry.constraint}], [#entry.description], [#entry.default-value])
     }
 )
 
