@@ -1,10 +1,10 @@
-#import "vhdl_parse.typ" as vhdl_parse;
+#import "vhdl_parse.typ" as vhdl-parse;
 #import "@preview/diagraph:0.3.7"
 #import "@preview/elembic:1.1.0"
 
 = VHDL Parsing
 
-#let parsed_file = vhdl_parse.parse("test.vhd", read("../test/test.vhd"))
+#let parsed_file = vhdl-parse.parse("test.vhd", read("../test/test.vhd"))
 
 Messages from the parser:
 
@@ -14,19 +14,19 @@ Messages from the parser:
 
 = Port list
 
-#let ports = vhdl_parse.portlist(parsed_file)
+#let ports = vhdl-parse.port-list(parsed_file)
 
 #table(
     columns: (auto, auto, auto, 1fr),
     table.header([name], [mode], [type], [description]),
     ..for entry in ports {
-        ( [#entry.name], [#entry.mode], [#{entry.port_type}#{entry.constraint}], [#entry.description])
+        ( [#entry.name], [#entry.mode], [#{entry.port-type}#{entry.constraint}], [#entry.description])
     }
 )
 
 = Generics list
 
-#let generics = vhdl_parse.genericlist(parsed_file)
+#let generics = vhdl-parse.generic-list(parsed_file)
 
 #table(
     columns: (auto, auto, auto, 1fr),
@@ -75,7 +75,7 @@ Here I am describing the #generic-elem("flag") generic and here the #generic-ele
 
 = FSM 
 
-#let fsm = vhdl_parse.fsm(parsed_file,"fsm.state")
+#let fsm = vhdl-parse.fsm(parsed_file,"fsm.state")
 
 List of states:
 
@@ -89,7 +89,7 @@ List of states:
 
 Diagram:
 
-#let dotfile = vhdl_parse.fsm-dot(
+#let dotfile = vhdl-parse.fsm-dot(
     parsed_file, "fsm.state", 
     font-name: "DejaVu Sans",
     state-shape: "septagon",
@@ -113,13 +113,13 @@ Diagram:
 
 = Instances
 
-#let instances = vhdl_parse.instanceslist(parsed_file)
+#let instances = vhdl-parse.instanceslist(parsed_file)
 
 #instances
 
 = Constants
 
-#let constants = vhdl_parse.constantslist(parsed_file)
+#let constants = vhdl-parse.constantslist(parsed_file)
 
 #table(
     columns: (auto, auto, auto, 1fr),
@@ -131,7 +131,7 @@ Diagram:
 
 = Signals
 
-#let signals = vhdl_parse.signalslist(parsed_file)
+#let signals = vhdl-parse.signalslist(parsed_file)
 
 #table(
     columns: (auto, auto, auto, 1fr),
@@ -143,7 +143,7 @@ Diagram:
 
 = Types
 
-#let types = vhdl_parse.typeslist(parsed_file)
+#let types = vhdl-parse.typeslist(parsed_file)
 
 #table(
     columns: (auto, auto, 1fr),
