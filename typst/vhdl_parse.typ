@@ -83,6 +83,8 @@
 ///   parsed-file)
 /// 
 ///>>> #set text(font: ("DejaVu Sans", "Arial", "Helvetica"))
+/// Ports list:
+/// 
 /// #table(
 ///    columns: (2cm, 1.5cm, 4cm, 6cm),
 ///    table.header([name], [mode], [type], [description]),
@@ -144,6 +146,8 @@
 ///   parsed-file)
 /// 
 ///>>> #set text(font: ("DejaVu Sans", "Arial", "Helvetica"))
+/// Generics list:
+/// 
 /// #table(
 ///    columns: (2cm, 4cm, 6cm, 2cm),
 ///    table.header([name], [type], [description], [default]),
@@ -183,6 +187,35 @@
 
 /// Returns information about a state machine found in the parsed file
 ///
+/// This function looks for a case statement and assignments within the different cases:
+/// 
+/// ```vhdl
+/// case my_state is
+///   when state_1 =>
+///     next_state <= state_2
+/// 
+///   when state_2 =>
+///     next_state <= state_1
+/// 
+///   when others =>
+///     next_state <= state_1
+/// end case;
+/// ```
+/// 
+/// Both signal and variable assignments are detected. The signal or variable that is
+/// holding the current state (`my_state` in the example above) is defined with the
+/// `read-variable-name` parameter in the function call, while the signal or variable
+/// assigned to the next state (`next_state` in the example above) is defined with the
+/// `write-variable-name` parameter. If the same signal is both read and written, the
+/// name just needs to be defined in `read-variable-name` and `write-variable-name`
+/// can be kept to `none` (the default). If an assignment is found in the `when others`
+/// clause, the destination of the assignment will be stored as the default state.
+/// 
+/// @fsm will attempt to find a description for each transition. For that it will look
+/// for a comment near the *condition* (an `if`, `elsif` or `else` statement) before 
+/// the assignment. If it doesn't find a comment, it will attempt to use the test 
+/// condition itself (inside the `if` or `elsif`) as description.
+/// 
 /// *Return structure*
 /// 
 /// a dictionary with the following elements:
@@ -267,49 +300,73 @@
     cbor.encode(fsmconfig)))
 }
 
-/// fsm-dot: returns a description of an FDM in the DOT format, ready to be drawn by the diagraph package1
-///
-/// - parsed-file (struct):                    The parsed filed object, as returned by parse() 
-/// - read-variable-name (string):             The name of the signal or variable holding the current fsm state
-/// - write-variable-name (string):            (optional) the name of the signal or variable holding the next fsm state, if different from read-variable-name 
-/// - comment-priority (string):               (optional) override the default comment priority, either "leading" or "trailing" 
-/// - left-to-right(bool):                     (optional) if true, distribute the states left-to-right instead of top-to-bottom
-/// - font-name(string):                       (optional) the font to use (has to be accessible to Typst)
-/// - state-shape (string):                    (optional) the shape to use for states
-/// - state-background-color (color):          (optional) the background color for states
-/// - state-line-color (color):                (optional) the line color for states
-/// - state-text-color (color):                (optional) the color of text for states
-/// - state-font-size: (float):                (optional) the text size for states (in points)
-/// - default-state-shape (string):            (optional) the shape to use for the default state
-/// - default-state-background-color (string): (optional) the background color for the default state
-/// - default-state-line-color (String):       (optional) the line color for the default state
-/// - default-state-text-color (string):       (optional) the color of text for the default state
-/// - default-state-font-size (float):         (optional) the text size for the default state (in points)
-/// - transition-line-color (String):          (optional) the line color for the transitions
-/// - transition-text-color (string):          (optional) the color of text for the transitions
-/// - transition-font-size (float):            (optional) the text size for the transitions (in points)
+/// Returns a description of a FSM in the DOT format, ready to be drawn by the diagraph package.
 /// 
-/// -> a string with the DOT description 
-#let fsm-dot(parsed-file, 
-            read-variable-name, 
-            write-variable-name: none, 
-            comment-priority : none,
-            left-to-right: false,
-            font-name : "Helvetica,Arial,sans-serif",
-            state-shape: "ellipse",                  
-            state-background-color: white,       
-            state-line-color: black,             
-            state-text-color: black,             
-            state-font-size: 14,             
-            default-state-shape: "doublecircle",          
-            default-state-background-color: none,
-            default-state-line-color: none,     
-            default-state-text-color: none,     
-            default-state-font-size: none,                  
-            transition-line-color: none,     
-            transition-text-color: none,     
-            transition-font-size: none                  
-            ) = {
+/// For more information about FSM detecton please refer to the @fsm function.
+/// 
+/// ```example 
+/// #let dot = vhdl-parse.fsm-dot(
+///   parsed-file,
+///   "fsm.state",
+///   font-name: "DejaVu Sans, Helvetica,Arial,sans-serif",
+///   state-background-color: blue.lighten(70%),
+///   default-state-background-color: red.lighten(70%)
+///   )
+/// #import "@preview/diagraph:0.3.7"
+/// #diagraph.render(dot)
+/// ```
+/// 
+/// -> string 
+#let fsm-dot(
+      /// The parsed filed object, as returned by @parse -> dictionary
+    parsed-file,
+      /// The name of the signal or variable holding the current fsm state -> string
+    read-variable-name, 
+      /// (optional) The name of the signal or variable holding the next fsm state, if different from 
+      /// `read-variable-name` -> string | none
+    write-variable-name: none, 
+      /// (optional) override the default comment priority, either "leading" or "trailing" -> string | none
+    comment-priority : none,
+      /// (optional) if true, make a left-to-right diagram instead of top-to-down -> bool
+    left-to-right: false,
+      /// (optional) the font to use (has to be accessible to Typst) -> string
+    font-name : "Helvetica,Arial,sans-serif",
+      /// (optional)  the shape to use for states (refer to the Graphviz documentation for a list) 
+      /// -> string
+    state-shape: "ellipse",
+      /// (optional) the background color for states -> color                  
+    state-background-color: white,  
+      /// (optional) the line color for states -> color     
+    state-line-color: black,             
+      /// (optional) the color of text for states -> color
+    state-text-color: black,   
+      /// (optional) the text size for states (in points) -> float    
+    state-font-size: 14,             
+      /// (optional) the shape to use for the default state (refer to the Graphviz documentation for a 
+      /// list) -> string
+    default-state-shape: "doublecircle",   
+      /// (optional) the background color for the default state. If none, use the same one as for
+      /// the regular states -> color | none
+    default-state-background-color: none,
+      /// (optional) the line color for the default state. If none, use the same one as for the regular 
+      /// states -> color | none
+    default-state-line-color: none,     
+      /// (optional) the color of text for the default state. If none, use the same one as for the 
+      /// regular states -> color | none
+    default-state-text-color: none,        
+      /// (optional) the text size for the default state (in points). If none, use the same one as for
+      /// the regular states -> float | none
+    default-state-font-size: none,   
+      /// (optional) the line color for the transitions. If none, use the same one as for the 
+      /// regular states -> color | none             
+    transition-line-color: none,     
+      /// (optional) the color of text for the transitions. If none, use the same one as for the 
+      /// regular states -> color | none             
+    transition-text-color: none,     
+      /// (optional) the text size for the transitions (in points). If none, use the same one as for the 
+      /// regular states -> float | none             
+    transition-font-size: none                  
+    ) = {
   // arguments check and conversion
   assert(type(parsed-file) == dictionary, message: "parsed-file must be the return value from the parse() function")
   assert(type(read-variable-name) == str, message: "read-variable-name must be a string")
