@@ -300,7 +300,7 @@
     cbor.encode(fsmconfig)))
 }
 
-/// Returns a description of a FSM in the DOT format, ready to be drawn by the diagraph package.
+/// Returns a description of an FSM in the DOT format, ready to be drawn by the diagraph package.
 /// 
 /// For more information about FSM detecton please refer to the @fsm function.
 /// 
@@ -457,22 +457,55 @@
     cbor.encode(fsmdotconfig)))
 }
 
-/// instanceslist: returns the instances list from the first entity found in the parsed file
+/// Returns the instances list from the first entity found in the parsed file
 ///
-/// - parsed-file (struct):      The parsed file object, as returned by parse() 
-/// - comment-priority (string): (optional) override the default comment priority, either "leading" or "trailing" 
+/// *Return structure*
 /// 
-/// -> an array of dictionaries, with in each item:
-///    - label (string):                  the instantiation label
-///    - entity (string):                 the entity being instantiated
-///    - description (string or none):    a comment describing the instance
-///    - generics-map (array):            an array of generics
-///    - ports-map (array):               an array of ports
+/// an array of dictionaries, each item having the following elements:
 /// 
-/// ports and generics are described by the following dictionary
-///    - origin (string):                 name of the generic or port on the entity side
-///    - expression (string):             the expression associated to the generic or port
-#let instanceslist(parsed-file, comment-priority : none) = {
+/// #dictionary-description((
+///  // elem name       elem type         elem description
+///   ("label",        "string",         "the instantiation label"),
+///   ("entity",       "string",         "the entity being instantiated"),
+///   ("description",  "string or none", "a comment describing the instance"),
+///   ("generics-map", "array",          "an array of generics"),
+///   ("ports-map",    "array",          "an array of ports")
+/// ))
+/// 
+/// `generics-map` and `ports-map` are arrays of dictionaries, each item having the following elements:
+/// 
+/// #dictionary-description((
+///  // elem name     elem type elem description
+///   ("origin",     "string", "name of the generic or port on the entity side"),
+///   ("expression", "string", "the expression assigned to the generic or port"),
+///  ))
+/// 
+/// * Example *
+/// 
+/// ```example
+/// >>> #set text(font: ("DejaVu Sans", "Arial", "Helvetica"))
+/// List of Instances
+/// 
+/// #let instances = vhdl-parse.instances-list(parsed-file)
+/// 
+/// #table(
+///     columns: (3cm, 3cm, 7cm),
+///     table.header([label], [entity], [description]),
+///     ..for element in instances {
+///         ( [#element.label], [#element.entity], [#element.description])
+///     }
+/// )
+/// 
+/// ```
+/// 
+/// -> array
+/// 
+#let instances-list(
+      /// The parsed file object, as returned by @parse -> dictionary
+    parsed-file, 
+      /// (optional) override the default comment priority, either "leading" or "trailing" -> string | none
+    comment-priority : none) = {
+
   // arguments check and conversion
   assert(type(parsed-file) == dictionary, message: "parsed-file must be the return value from the parse() function")
   if comment-priority == none {
@@ -489,18 +522,46 @@
     bytes(comment-priority)))
 }
 
-/// constantslist: returns the constants list from the architecture in the parsed file
+/// Returns the constants list from the architecture or package definition in the parsed file
 ///
-/// - parsed-file (struct):      The parsed file object, as returned by parse() 
-/// - comment-priority (string): (optional) override the default comment priority, either "leading" or "trailing" 
+/// *Return structure*
 /// 
-/// -> an array of dictionaries, with in each item:
-///    - name (string):                   the constant name
-///    - object-type (string):            the constant type
-///    - constraint (string or none):     the type constraint (x downto y)
-///    - expression (string or none):     the constant value
-///    - description (string or none):    a comment describing the constant
-#let constantslist(parsed-file, comment-priority : none) = {
+/// an array of dictionaries, each item having the following elements:
+/// 
+/// #dictionary-description((
+///  // elem name       elem type         elem description
+///    ("name",        "string",         "the constant name"),
+///    ("object-type", "string",         "the constant type"),
+///    ("constraint",  "string or none", "the type constraint (x downto y)"),
+///    ("expression",  "string or none", "the constant value"),
+///    ("description", "string or none", "a comment describing the constant"),
+/// ))
+/// 
+/// ```example
+/// >>> #set text(font: ("DejaVu Sans", "Arial", "Helvetica"))
+/// List of Constants
+/// 
+/// #let constants = vhdl-parse.constants-list(parsed-file)
+/// 
+/// #table(
+///    columns: (2cm, 4cm, 3cm, 4cm),
+///    table.header([name], [type], [description], [value]),
+///    ..for entry in constants {
+///        ( [#entry.name], 
+///          [#{entry.object_type}#{entry.constraint}], 
+///          [#entry.description], 
+///          [#entry.expression])
+///    }
+/// )
+/// ```
+/// 
+/// -> array
+#let constants-list(
+      /// The parsed file object, as returned by @parse -> dictionary
+    parsed-file, 
+      /// (optional) override the default comment priority, either "leading" or "trailing" -> string | none
+    comment-priority : none) = {
+
   // arguments check and conversion
   assert(type(parsed-file) == dictionary, message: "parsed-file must be the return value from the parse() function")
   if comment-priority == none {
@@ -519,18 +580,46 @@
   return declarations.constants
 }
 
-/// signalslist: returns the signals list from the architecture in the parsed file
+/// Returns the signals list from the architecture or package declaration in the parsed file
 ///
-/// - parsed-file (struct):      The parsed file object, as returned by parse() 
-/// - comment-priority (string): (optional) override the default comment priority, either "leading" or "trailing" 
+/// *Return structure*
 /// 
-/// -> an array of dictionaries, with in each item:
-///    - name (string):                   the constant name
-///    - object-type (string):            the constant type
-///    - constraint (string or none):     the type constraint (x downto y)
-///    - expression (string or none):     the constant value
-///    - description (string or none):    a comment describing the constant
-#let signalslist(parsed-file, comment-priority : none) = {
+/// an array of dictionaries, each item having the following elements:
+/// 
+/// #dictionary-description((
+///  // elem name       elem type         elem description
+///    ("name",        "string",         "the signal name"),
+///    ("object-type", "string",         "the signal type"),
+///    ("expression",  "string or none", "the signal initial value"),
+///    ("constraint",  "string or none", "the type constraint (x downto y)"),
+///    ("description", "string or none", "a comment describing the signal"),
+/// ))
+/// 
+/// ```example
+/// >>> #set text(font: ("DejaVu Sans", "Arial", "Helvetica"))
+/// List of Signals
+/// 
+/// #let signals = vhdl-parse.signals-list(parsed-file)
+/// 
+/// #table(
+///    columns: (2cm, 3.5cm, 5cm, 3.5cm),
+///    table.header([name], [type], [description], [value]),
+///    ..for entry in signals {
+///        ( [#entry.name], 
+///          [#{entry.object_type}#{entry.constraint}], 
+///          [#entry.description], 
+///          [#entry.expression])
+///    }
+/// )
+/// ```
+/// 
+/// -> array
+#let signals-list(
+      /// The parsed file object, as returned by @parse -> dictionary
+    parsed-file, 
+      /// (optional) override the default comment priority, either "leading" or "trailing" -> string | none
+    comment-priority : none) = {
+
   // arguments check and conversion
   assert(type(parsed-file) == dictionary, message: "parsed-file must be the return value from the parse() function")
   if comment-priority == none {
@@ -549,30 +638,68 @@
   return declarations.signals
 }
 
-/// typeslist: returns the types list from the architecture in the parsed file
+/// Returns the types list from the architecture or package declaration in the parsed file
 ///
-/// - parsed-file (struct):      The parsed file object, as returned by parse() 
-/// - comment-priority (string): (optional) override the default comment priority, either "leading" or "trailing" 
+/// *Return structure*
 /// 
-/// -> an array of dictionaries, with in each item:
-///    - name (string):                          the type name
-///    - kind (string):                          the type kind: "enumeration", "record", "subtype" or "array"
-///    - description (string or none):           a comment describing the type
-///    - definition:                             a structure with the type definition. The structure depends on the type kind
-///      - Enumeration: an array of dictionaries, with for each element:
-///        - element-name (string):              the enumeration element name
-///        - description (string or none):       a comment describing the element
-///      - Record: an array of dictionaries, with for each element:
-///        - element-name (string):              the record element name
-///        - element-tyoe (string):              the record element type
-///        - description (string or none):       a comment describing the record element
-///      - Subtype: a dictionary with the following elements:
-///        - subtype (string):                   the type name
-///        - constraint (string or none):        the constraint (x downto y)
-///      - Array: a dictionary with the following elements:
-///        - range (string):                     the array range(s)
-///        - subtype (string):                   the array element type
-#let typeslist(parsed-file, comment-priority : none) = {
+/// an array of dictionaries, each item having the following elements:
+/// 
+/// #dictionary-description((
+///  // elem name       elem type         elem description
+///    ("name", "string",                "the type name"),
+///    ("kind", "string",                "the type kind: \"enumeration\", \"record\", \"subtype\" or \"array\""),
+///    ("description", "string or none", "a comment describing the type"),
+///    ("definition", "see below",       "an object with the type definition. The structure depends on the type kind"),
+/// ))
+/// 
+/// The definition object is different depending on the type kind:
+/// - Enumeration: an array of dictionaries, each item having the following elements:
+///   #dictionary-description((
+///  // elem name       elem type         elem description
+///   ("element-name", "string",         "the enumeration element name"),
+///   ("description",  "string or none", "a comment describing the element"),
+/// ))
+/// - Record: an array of dictionaries, each item having the following elements:
+///   #dictionary-description((
+///  // elem name       elem type         elem description
+///   ("element-name", "string",         "the record element name"),
+///   ("element-type", "string",         "the record element type"),
+///   ("description",  "string or none", "a comment describing the record element"),
+/// ))
+/// - Subtype: a dictionary with the following elements:
+///   #dictionary-description((
+///  // elem name     elem type         elem description
+///   ("subtype",    "string",         "the type name"),
+///   ("constraint", "string or none", "the constraint (x downto y)"),
+/// ))
+/// - Array: a dictionary with the following elements:
+///   #dictionary-description((
+///  // elem name  elem type elem description
+///   ("range",   "string", "the array range(s)"),
+///   ("subtype", "string", "the array element type"),
+/// ))
+/// 
+/// ```example
+/// >>> #set text(font: ("DejaVu Sans", "Arial", "Helvetica"))
+/// List of types
+/// 
+/// #let types = vhdl-parse.types-list(parsed-file)
+/// 
+/// #table(
+///     columns: (3.5cm, 3cm, 6cm),
+///     table.header([name], [kind], [description]),
+///     ..for entry in types {
+///         ( [#entry.name], [#entry.kind], [#entry.description] )
+///     }
+/// )
+/// ```
+/// -> array
+#let types-list(
+      /// The parsed file object, as returned by @parse -> dictionary
+    parsed-file, 
+      /// (optional) override the default comment priority, either "leading" or "trailing" -> string | none
+    comment-priority : none) = {
+
   // arguments check and conversion
   assert(type(parsed-file) == dictionary, message: "parsed-file must be the return value from the parse() function")
   if comment-priority == none {
