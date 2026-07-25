@@ -6,7 +6,7 @@
 /// to extract information from the parsed VHDL file. The `messages` element
 /// in the returned dictionary is a list of warnings or errors from the parser.
 /// 
-/// *Example*
+/// === Example
 /// 
 /// ```example
 ///<<<#let parsed-file = vhdl-parse.parse(
@@ -60,7 +60,7 @@
 
 /// Returns the portlist from the first entity found in the parsed file
 ///    
-/// *Return structure*
+/// === Return structure
 /// 
 /// an array of dictionaries, each item having the following elements:
 /// 
@@ -76,7 +76,7 @@
 /// 
 /// ))
 /// 
-/// *Example*
+/// === Example
 ///
 /// ```example 
 /// #let ports = vhdl-parse.port-list(
@@ -124,7 +124,7 @@
 
 /// Returns the generics list from the first entity found in the parsed file
 /// 
-/// *Return structure*
+/// === Return structure
 /// 
 /// an array of dictionaries, each item having the following elements:
 /// 
@@ -139,7 +139,7 @@
 /// 
 /// ))
 /// 
-/// *Example*
+/// === Example
 ///
 /// ```example 
 /// #let generics = vhdl-parse.generic-list(
@@ -216,7 +216,7 @@
 /// the assignment. If it doesn't find a comment, it will attempt to use the test 
 /// condition itself (inside the `if` or `elsif`) as description.
 /// 
-/// *Return structure*
+/// === Return structure
 /// 
 /// a dictionary with the following elements:
 /// 
@@ -243,7 +243,7 @@
 ///   ("description", "string or none", "the comment describing the condition, if found"),
 ///  ))
 ///
-/// *Example*
+/// === Example
 ///
 /// ```example 
 /// #let fsm = vhdl-parse.fsm(parsed-file,"fsm.state")
@@ -304,6 +304,7 @@
 /// 
 /// For more information about FSM detecton please refer to the @fsm function.
 /// 
+/// === Example
 /// ```example 
 /// #let dot = vhdl-parse.fsm-dot(
 ///   parsed-file,
@@ -459,7 +460,7 @@
 
 /// Returns the instances list from the first entity found in the parsed file
 ///
-/// *Return structure*
+/// === Return structure
 /// 
 /// an array of dictionaries, each item having the following elements:
 /// 
@@ -480,7 +481,7 @@
 ///   ("expression", "string", "the expression assigned to the generic or port"),
 ///  ))
 /// 
-/// * Example *
+/// === Example
 /// 
 /// ```example
 /// >>> #set text(font: ("DejaVu Sans", "Arial", "Helvetica"))
@@ -524,7 +525,7 @@
 
 /// Returns the constants list from the architecture or package definition in the parsed file
 ///
-/// *Return structure*
+/// === Return structure
 /// 
 /// an array of dictionaries, each item having the following elements:
 /// 
@@ -537,7 +538,9 @@
 ///    ("description", "string or none", "a comment describing the constant"),
 /// ))
 /// 
-/// ```example
+/// === Example
+/// 
+/// ```Example
 /// >>> #set text(font: ("DejaVu Sans", "Arial", "Helvetica"))
 /// List of Constants
 /// 
@@ -582,7 +585,7 @@
 
 /// Returns the signals list from the architecture or package declaration in the parsed file
 ///
-/// *Return structure*
+/// === Return structure
 /// 
 /// an array of dictionaries, each item having the following elements:
 /// 
@@ -595,6 +598,7 @@
 ///    ("description", "string or none", "a comment describing the signal"),
 /// ))
 /// 
+/// === Example
 /// ```example
 /// >>> #set text(font: ("DejaVu Sans", "Arial", "Helvetica"))
 /// List of Signals
@@ -640,7 +644,7 @@
 
 /// Returns the types list from the architecture or package declaration in the parsed file
 ///
-/// *Return structure*
+/// === Return structure
 /// 
 /// an array of dictionaries, each item having the following elements:
 /// 
@@ -679,6 +683,7 @@
 ///   ("subtype", "string", "the array element type"),
 /// ))
 /// 
+/// === Example
 /// ```example
 /// >>> #set text(font: ("DejaVu Sans", "Arial", "Helvetica"))
 /// List of types
