@@ -22,7 +22,7 @@ Import the module and use the `parse` function to parse a VHDL file.
 You can then for example extract the generics from the VHDL file with the following command:
 
 ```typ
-#let generics = vhdl-parse.generic-list(parsed_file)
+#let generics = vhdl-parse.generic-list(parsed-file)
 ```
 
 Which will return an array similar to this:
