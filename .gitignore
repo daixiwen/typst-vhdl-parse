@@ -26,3 +26,5 @@ target
 
 # compiled file
 *.wasm
+
+/release
