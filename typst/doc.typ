@@ -42,6 +42,9 @@
 can be presented in a typst document. It makes writing documentation for VHDL code easier and
 let use the VHDL code as single source of truth.
 
+It only extracts information and provides it in structures. It is up to the user to format it
+in a way to present it in a readable manner.
+
 #outline(depth: 2, title: "Table of contents")
 
 // content
