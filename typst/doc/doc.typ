@@ -6,7 +6,7 @@
 
 // current version
 #let version = "0.1.0"
-#let release_date = "2026/07/25"
+#let release_date = datetime.today().display()
 
 // document template
 #show: codly-init.with()

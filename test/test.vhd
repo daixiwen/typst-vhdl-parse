@@ -51,7 +51,7 @@ architecture rtl of test is
   signal fsm: fsm_wrapper_t;
 
     -- alias
-  alias fsm_state is fsm.state : signal;
+  alias fsm_state is fsm.state;
 
   signal mysignal : unsigned(15 downto 0) := (others => '0'); -- a signal with a comment on the same line
 
