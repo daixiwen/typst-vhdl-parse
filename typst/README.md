@@ -1,7 +1,3 @@
-[![Unlicense](https://img.shields.io/badge/license-unlicense-blue)](https://unlicense.org/)
-[![User Manual](https://img.shields.io/badge/manual-.pdf-purple)](https://daixiwen.github.io/typst-vhdl-parse/doc.pdf)
-![Test Status](https://img.shields.io/github/actions/workflow/status/daixiwen/typst-vhdl-parse/test.yml?label=test)
-
 # VHDL-parse
 
 `Vhdl-parse` is a typst module that parses VHDL files and extracts information from them that
@@ -54,8 +50,8 @@ The resulting array can for example be formatted into a table, following a speci
 
 ## Available functions
 
-Please read the [documentation](https://daixiwen.github.io/typst-vhdl-parse/doc.pdf) for 
-details. The following information can be extracted from the VHDL file:
+Please read the [documentation](doc/doc.pdf) for details. The following information can
+be extracted from the VHDL file:
 - generics list
 - ports list
 - fsm states and transitions
@@ -66,4 +62,10 @@ details. The following information can be extracted from the VHDL file:
 
 Additionnally, FSM information can be formatted to generate a figure using [diagraph](https://typst.app/universe/package/diagraph/)
 
-![FSM diagram](typst/doc/FSM.png)
+![FSM diagram](doc/FSM.png)
+
+## Changelog
+
+### 0.1.0
+
+Initial release

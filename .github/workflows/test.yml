@@ -1,0 +1,31 @@
+name: test
+on:
+  push:
+    branches:
+      - develop
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install Rust for WASM
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: wasm32-unknown-unknown
+
+      - name: Install Typst
+        uses: typst-community/setup-typst@v5
+
+      - name: test the rust code
+        run: cargo test --target x86_64-unknown-linux-gnu
+
+      - name: compile a WASM plugin
+        run: cargo build
+
+      - name: copy the plugin in the typst folder
+        run: cp target/wasm32-unknown-unknown/debug/typst_vhdl_parse.wasm typst
+
+      - name: run the typst test
+        run: typst compile --root . typst/test.typ
