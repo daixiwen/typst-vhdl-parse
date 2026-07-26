@@ -122,3 +122,39 @@ default value, but it can then be overriden in all other function calls if neede
 #let docs = tidy.parse-module(read("vhdl_parse.typ"), name: "vhdl-parse", scope: (vhdl-parse: vhdl-parse, parsed-file: parsed-file, dictionary-description: dictionary-description))
 
 #tidy.show-module(docs, show-outline: false, sort-functions: none, first-heading-level: 1, show-module-name: false)
+
+= Implementation details
+
+This section is only relevant if you are interested in the inner workings of the package or if you 
+want to make any changes.
+
+== Architecture
+
+The package is made of a lightweight Typst file calling a WASM plugin. the plugin itself is written 
+in Rust and uses the #link("https://lib.rs/crates/vhdl_lang")[`vhdl_lang`] crate. The plugin and the
+Typst file communicate parameters and return values using byte arrays, and the CBOR protocol is
+used on both sides to transfer more complex structures.
+
+There is a very basic `AGENTS.md` file in the repository. I used #link("https://opencode.ai")[OpenCode]
+to kickstart the project because I couldn't find how to use the 
+#link("https://lib.rs/crates/vhdl_lang")[`vhdl_lang`] crate by mself, and to write some tests. The rest
+was written manually, because it is pretty basic code, walking through the structures returned
+by #link("https://lib.rs/crates/vhdl_lang")[`vhdl_lang`] to find the relevant information and putting
+it in structures which can be serialized for Typst. I found it easier to just write the code than to
+try to det en LLM to put it exactly in the way I wanted to. Maybe I'm just bad at prompting.
+
+== Caching
+
+The plugin caches results from a VHDL parsing, because I thought it would be very inneficient to redo it
+at each function call. Unfortunately it makes it difficult to make the plugin
+#link("https://typst.app/docs/reference/foundations/plugin#purity")[pure] as required by Typst: a plugin
+function call must not have any observable side effects on future plugin calls, and given the same 
+arguments, it must always return the same value.
+
+I have therefore implemented a cache system. The #link(label("vhdl-parse-parse()"), raw("parse()"))
+function stores the results of the parsing in a static cache, using the 
+#link("https://docs.rs/lazy_static/latest/lazy_static/")[lazystatic]. It returns an ID for typst, and
+the other functions use that ID as a parameter, so that the parsed VHDL can be extractd again from
+the cache. To respect the purity requirement, the other functions also send the VHDL file name and 
+the contents with the ID. That way the plugin can parse the VHDL file again if needed, and
+technically the function is not dependent on previous calls, but still benefits from a cache.
