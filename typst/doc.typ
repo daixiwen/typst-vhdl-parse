@@ -80,9 +80,24 @@ across the documentation.
 Please refer to #lower[@sec-fref] for more details about all the functions that can be called
 with the parsed file.
 
-== Comments
+== Comments <sec-comments>
 
+When parsing VHDL, the module looks after comments to describe the objects it finds. It looks for 
+both comments on the same line than the object, and for comments on the line before it, as shown
+in the following examples:
 
+```vhdl
+-- this is a leading comment (before the object)
+signal my_signal: std_logic;
+
+signal my_other_signal: std_logic; -- this is a trailing comment (with the object)
+```
+
+If an object has both a leading and a trailing comment, the parser doesn't know which one to pick.
+This is why there is a `comment-priority` parameter, which tells it which comment to pick when both
+are detected. The #link(label("vhdl-parse-parse()"), raw("parse()")) function has the
+#link(label("vhdl-parse-parse.comment-priority"), raw("comment-priority")) parameter to give the 
+default value, but it can then be overriden in all other function calls if needed.
 
 = Functions reference <sec-fref>
 

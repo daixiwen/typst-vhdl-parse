@@ -32,7 +32,7 @@
     contents, 
       /// (optional) The VHDL variant -> string | int
     vhdl-variant : 2008, 
-      /// (opttional) The default comment priority. Either "leading" or "trailing" -> string
+      /// (opttional) The default comment priority. Either "leading" or "trailing", see #lower[@sec-comments] -> string
     comment-priority : "trailing") = {
 
   // arguments check and conversion
@@ -101,7 +101,7 @@
 #let port-list(
       /// The parsed file object, as returned by @parse -> dictionary
     parsed-file, 
-      /// (optional) override the default comment priority, either "leading" or "trailing" -> string | none
+      /// (optional) override the default comment priority, either "leading" or "trailing", see #lower[@sec-comments] -> string | none
     comment-priority : none) = {
 
   // arguments check and conversion
@@ -164,7 +164,7 @@
 #let generic-list(      
       /// The parsed file object, as returned by @parse -> dictionary
     parsed-file, 
-      /// (optional) override the default comment priority, either "leading" or "trailing" -> string | none
+      /// (optional) override the default comment priority, either "leading" or "trailing", see #lower[@sec-comments] -> string | none
     comment-priority : none) = {
 
   // arguments check and conversion
@@ -269,7 +269,7 @@
     read-variable-name, 
       /// (optional) The name of the signal or variable holding the next fsm state, if different from read-variable-name -> string | none
     write-variable-name: none, 
-      /// (optional) override the default comment priority, either "leading" or "trailing" -> string | none
+      /// (optional) override the default comment priority, either "leading" or "trailing", see #lower[@sec-comments] -> string | none
     comment-priority : none) = {
 
   // arguments check and conversion
@@ -326,7 +326,7 @@
       /// (optional) The name of the signal or variable holding the next fsm state, if different from 
       /// `read-variable-name` -> string | none
     write-variable-name: none, 
-      /// (optional) override the default comment priority, either "leading" or "trailing" -> string | none
+      /// (optional) override the default comment priority, either "leading" or "trailing", see #lower[@sec-comments] -> string | none
     comment-priority : none,
       /// (optional) if true, make a left-to-right diagram instead of top-to-down -> bool
     left-to-right: false,
@@ -504,7 +504,7 @@
 #let instances-list(
       /// The parsed file object, as returned by @parse -> dictionary
     parsed-file, 
-      /// (optional) override the default comment priority, either "leading" or "trailing" -> string | none
+      /// (optional) override the default comment priority, either "leading" or "trailing", see #lower[@sec-comments] -> string | none
     comment-priority : none) = {
 
   // arguments check and conversion
@@ -562,7 +562,7 @@
 #let constants-list(
       /// The parsed file object, as returned by @parse -> dictionary
     parsed-file, 
-      /// (optional) override the default comment priority, either "leading" or "trailing" -> string | none
+      /// (optional) override the default comment priority, either "leading" or "trailing", see #lower[@sec-comments] -> string | none
     comment-priority : none) = {
 
   // arguments check and conversion
@@ -621,7 +621,7 @@
 #let signals-list(
       /// The parsed file object, as returned by @parse -> dictionary
     parsed-file, 
-      /// (optional) override the default comment priority, either "leading" or "trailing" -> string | none
+      /// (optional) override the default comment priority, either "leading" or "trailing", see #lower[@sec-comments] -> string | none
     comment-priority : none) = {
 
   // arguments check and conversion
@@ -702,7 +702,7 @@
 #let types-list(
       /// The parsed file object, as returned by @parse -> dictionary
     parsed-file, 
-      /// (optional) override the default comment priority, either "leading" or "trailing" -> string | none
+      /// (optional) override the default comment priority, either "leading" or "trailing", see #lower[@sec-comments] -> string | none
     comment-priority : none) = {
 
   // arguments check and conversion
