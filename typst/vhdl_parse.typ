@@ -246,7 +246,7 @@
 /// === Example
 ///
 /// ```example 
-/// #let fsm = vhdl-parse.fsm(parsed-file,"fsm.state")
+/// #let fsm = vhdl-parse.fsm(parsed-file,"fsm_state")
 /// 
 /// List of states:
 /// 
@@ -308,7 +308,7 @@
 /// ```example 
 /// #let dot = vhdl-parse.fsm-dot(
 ///   parsed-file,
-///   "fsm.state",
+///   "fsm_state",
 ///   font-name: "DejaVu Sans, Helvetica,Arial,sans-serif",
 ///   state-background-color: blue.lighten(70%),
 ///   default-state-background-color: red.lighten(70%)

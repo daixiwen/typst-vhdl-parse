@@ -551,8 +551,8 @@ mod tests {
         let fsm = get_fsm(
             design,
             &FSMConfig {
-                read_variable_name: "fsm.state".to_owned(),
-                write_variable_name: "fsm.state".to_owned(),
+                read_variable_name: "fsm_state".to_owned(),
+                write_variable_name: "fsm_state".to_owned(),
                 comment_priority_trailing: true,
             },
         )
