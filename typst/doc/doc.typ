@@ -2,7 +2,7 @@
 #import "@preview/codly:1.3.0": codly-init, no-codly, codly
 #import "@preview/numbly:0.1.0": numbly
 
-#import "vhdl_parse.typ" as vhdl-parse
+#import "../vhdl_parse.typ" as vhdl-parse
 
 // current version
 #let version = "0.1.0"
@@ -40,7 +40,7 @@
 
 `Vhdl-parse` is a typst module that parses VHDL files and extracts information from them that
 can be presented in a typst document. It makes writing documentation for VHDL code easier and
-let use the VHDL code as single source of truth.
+lets use the VHDL code as single source of truth.
 
 It only extracts information and provides it in structures. It is up to the user to format it
 in a way to present it in a readable manner.
@@ -120,9 +120,9 @@ default value, but it can then be overriden in all other function calls if neede
 }
 
 // parse the VHDL file here and give it to the examples
-#let parsed-file = vhdl-parse.parse("test.vhd", read("../test/test.vhd"))
+#let parsed-file = vhdl-parse.parse("test.vhd", read("../../test/test.vhd"))
 
-#let docs = tidy.parse-module(read("vhdl_parse.typ"), name: "vhdl-parse", scope: (vhdl-parse: vhdl-parse, parsed-file: parsed-file, dictionary-description: dictionary-description))
+#let docs = tidy.parse-module(read("../vhdl_parse.typ"), name: "vhdl-parse", scope: (vhdl-parse: vhdl-parse, parsed-file: parsed-file, dictionary-description: dictionary-description))
 
 #tidy.show-module(docs, show-outline: false, sort-functions: none, first-heading-level: 1, show-module-name: false)
 
