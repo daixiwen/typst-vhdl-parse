@@ -8,4 +8,12 @@ The source code is in the src/ directory:
 In the typst/ directory, there is a vhdl_parse.typ file which is the Typst API file, that calls the WASM plugin
 
 To run the tests on linux:
+```
 cargo test --target x86_64-unknown-linux-gnu
+```
+
+To build the WASM plugin:
+```
+cargo build
+```
+
