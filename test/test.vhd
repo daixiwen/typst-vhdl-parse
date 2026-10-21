@@ -39,6 +39,8 @@ architecture rtl of test is
   type fsm_wrapper_t is record
       -- the actual fsm type
     state : fsm_t;
+      -- a type with a constraint
+    data : std_logic_vector(31 downto 0);
   end record;
 
     -- a subtype

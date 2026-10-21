@@ -83,6 +83,8 @@ pub struct TypeDefinitionRecordElement {
     pub element_name: String,
     /// type of the record element
     pub element_type: String,
+    /// type constraint of the record element (x downto y)
+    pub element_constraint: Option<String>,
     /// description (comment)
     pub description: Option<String>,
 }
@@ -225,7 +227,11 @@ fn explore_declarations(
                                 elements
                                     .iter()
                                     .map(|e| {
-                                        let element_type = e.subtype.to_string();
+                                        let element_type = e.subtype.type_mark.to_string();
+                                        let element_constraint = e.subtype
+                                            .constraint
+                                            .as_ref()
+                                            .map(|constraint| constraint.to_string());
                                         let element_description = find_object_description(
                                             tokens,
                                             e.get_start_token(),
@@ -236,6 +242,7 @@ fn explore_declarations(
                                         e.idents.iter().map(move |f| TypeDefinitionRecordElement {
                                             element_name: f.to_string(),
                                             element_type: element_type.clone(),
+                                            element_constraint: element_constraint.clone(),
                                             description: element_description.clone(),
                                         })
                                     })
@@ -407,12 +414,20 @@ mod tests {
         );
 
         if let TypeDefinition::Record(record) = &fsm_wrapper_type.definition {
-            assert_eq!(record.len(), 1);
+            assert_eq!(record.len(), 2);
             assert_eq!(record.get(0).unwrap().element_name, "state");
             assert_eq!(record.get(0).unwrap().element_type, "fsm_t");
+            assert_eq!(record.get(0).unwrap().element_constraint, None);
             assert_eq!(
                 record.get(0).unwrap().description,
                 Some("the actual fsm type".to_owned())
+            );
+            assert_eq!(record.get(1).unwrap().element_name, "data");
+            assert_eq!(record.get(1).unwrap().element_type, "std_logic_vector");
+            assert_eq!(record.get(1).unwrap().element_constraint, Some("(31 downto 0)".to_owned()));
+            assert_eq!(
+                record.get(1).unwrap().description,
+                Some("a type with a constraint".to_owned())
             );
         } else {
             panic!("wrong type definition")
