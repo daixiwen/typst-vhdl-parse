@@ -273,8 +273,6 @@
 
 #let types = vhdl-parse.types-list(parsed-file)
 
-#types
-
 #assert(
 types == (
     (
