@@ -308,7 +308,14 @@ types == (
           (
             element_name: "state",
             element_type: "fsm_t",
+            element_constraint: none,
             description: "the actual fsm type",
+          ),
+          (
+            element_name: "data",
+            element_type: "std_logic_vector",
+            element_constraint: "(31 downto 0)",
+            description: "a type with a constraint",
           ),
         ),
       ),
