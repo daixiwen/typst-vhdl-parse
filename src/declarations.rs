@@ -23,6 +23,7 @@ wasm_minimal_protocol::initiate_protocol!();
 
 /// Describes a signal or a constant
 #[derive(Serialize)]
+#[serde(rename_all = "kebab-case")]
 pub struct ObjectDescription {
     /// signal or constant name
     pub name: String,
@@ -60,6 +61,7 @@ pub enum TypeDefinition {
 
 /// Describes an enumeration element
 #[derive(Serialize)]
+#[serde(rename_all = "kebab-case")]
 pub struct TypeDefinitionEnumElement {
     /// name of the enum element
     pub element_name: String,
@@ -78,6 +80,7 @@ pub struct TypeDefinitionArray {
 
 /// Describes a record element
 #[derive(Serialize)]
+#[serde(rename_all = "kebab-case")]
 pub struct TypeDefinitionRecordElement {
     /// name of the record element
     pub element_name: String,

@@ -19,6 +19,7 @@ wasm_minimal_protocol::initiate_protocol!();
 
 /// This is the main structure describing a state machine, with a list of states
 #[derive(Serialize, Default, Debug)]
+#[serde(rename_all = "kebab-case")]
 pub struct FSMDescription {
     /// name of the default state, after reset
     pub default_state: String,

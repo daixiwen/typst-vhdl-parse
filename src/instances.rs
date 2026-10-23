@@ -19,6 +19,7 @@ wasm_minimal_protocol::initiate_protocol!();
 
 /// Describes a single instantiation
 #[derive(Serialize)]
+#[serde(rename_all = "kebab-case")]
 pub struct InstanceDescription {
     /// label for the instance
     pub label: String,

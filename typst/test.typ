@@ -112,7 +112,7 @@
 
 #assert(
   fsm == (
-    default_state: "reset",
+    default-state: "reset",
     states: (
       (
         name: "reset",
@@ -216,8 +216,8 @@
       label: "my_instance",
       entity: "work.comp",
       description: "an example instantiation",
-      generics_map: ((origin: "enabled", expression: "true"),),
-      ports_map: (
+      generics-map: ((origin: "enabled", expression: "true"),),
+      ports-map: (
         (origin: "clk", expression: "clock"),
         (origin: "rst", expression: "reset"),
         (origin: "input", expression: "input_b"),
@@ -236,7 +236,7 @@
   constants == (
     (
       name: "c_ones",
-      object_type: "std_logic_vector",
+      object-type: "std_logic_vector",
       constraint: "(31 downto 0)",
       expression: "(others => '1')",
       description: "a constant",
@@ -253,14 +253,14 @@
   signals == (
     (
       name: "fsm",
-      object_type: "fsm_wrapper_t",
+      object-type: "fsm_wrapper_t",
       constraint: none,
       expression: none,
       description: "state machine signal",
     ),
     (
       name: "mysignal",
-      object_type: "unsigned",
+      object-type: "unsigned",
       constraint: "(15 downto 0)",
       expression: "(others => '0')",
       description: "a signal with a comment on the same line",
@@ -273,6 +273,8 @@
 
 #let types = vhdl-parse.types-list(parsed-file)
 
+#types
+
 #assert(
 types == (
     (
@@ -281,19 +283,19 @@ types == (
       definition: (
         Enumeration: (
           (
-            element_name: "reset",
+            element-name: "reset",
             description: "reset, initial state",
           ),
           (
-            element_name: "idle",
+            element-name: "idle",
             description: "state when not doing anything",
           ),
           (
-            element_name: "read_input",
+            element-name: "read_input",
             description: "check what's on the inputs",
           ),
           (
-            element_name: "write_output",
+            element-name: "write_output",
             description: "do something on the outputs",
           ),
         ),
@@ -306,15 +308,15 @@ types == (
       definition: (
         Record: (
           (
-            element_name: "state",
-            element_type: "fsm_t",
-            element_constraint: none,
+            element-name: "state",
+            element-type: "fsm_t",
+            element-constraint: none,
             description: "the actual fsm type",
           ),
           (
-            element_name: "data",
-            element_type: "std_logic_vector",
-            element_constraint: "(31 downto 0)",
+            element-name: "data",
+            element-type: "std_logic_vector",
+            element-constraint: "(31 downto 0)",
             description: "a type with a constraint",
           ),
         ),
