@@ -13,6 +13,7 @@ use vhdl_lang::{
 
 use crate::comments::find_object_description;
 use crate::parse_store::get_parsed;
+use crate::type_info::TypeInfo;
 use crate::{decode_typst_arg, decode_typst_arg_id, encode_typst_return};
 
 #[cfg(target_arch = "wasm32")]
@@ -146,12 +147,7 @@ fn explore_declarations(
         match &declaration.item {
             Object(object_declaration) => {
                 // extract details about the objects
-                let object_type = object_declaration.subtype_indication.type_mark.to_string();
-                let constraint = object_declaration
-                    .subtype_indication
-                    .constraint
-                    .as_ref()
-                    .map(|constraint| constraint.to_string());
+                let type_info = TypeInfo::new(&object_declaration.subtype_indication);
                 let expression = object_declaration
                     .expression
                     .as_ref()
@@ -169,8 +165,8 @@ fn explore_declarations(
                     .iter()
                     .map(|ident| ObjectDescription {
                         name: ident.tree.item.to_string(),
-                        object_type: object_type.clone(),
-                        constraint: constraint.clone(),
+                        object_type: type_info.get_type_name(),
+                        constraint: type_info.get_constraint(),
                         expression: expression.clone(),
                         description: description.clone(),
                     })
@@ -230,11 +226,7 @@ fn explore_declarations(
                                 elements
                                     .iter()
                                     .map(|e| {
-                                        let element_type = e.subtype.type_mark.to_string();
-                                        let element_constraint = e.subtype
-                                            .constraint
-                                            .as_ref()
-                                            .map(|constraint| constraint.to_string());
+                                        let element_type_info = TypeInfo::new(&e.subtype);
                                         let element_description = find_object_description(
                                             tokens,
                                             e.get_start_token(),
@@ -244,8 +236,8 @@ fn explore_declarations(
 
                                         e.idents.iter().map(move |f| TypeDefinitionRecordElement {
                                             element_name: f.to_string(),
-                                            element_type: element_type.clone(),
-                                            element_constraint: element_constraint.clone(),
+                                            element_type: element_type_info.get_type_name(),
+                                            element_constraint: element_type_info.get_constraint(),
                                             description: element_description.clone(),
                                         })
                                     })
@@ -427,7 +419,10 @@ mod tests {
             );
             assert_eq!(record.get(1).unwrap().element_name, "data");
             assert_eq!(record.get(1).unwrap().element_type, "std_logic_vector");
-            assert_eq!(record.get(1).unwrap().element_constraint, Some("(31 downto 0)".to_owned()));
+            assert_eq!(
+                record.get(1).unwrap().element_constraint,
+                Some("(31 downto 0)".to_owned())
+            );
             assert_eq!(
                 record.get(1).unwrap().description,
                 Some("a type with a constraint".to_owned())
