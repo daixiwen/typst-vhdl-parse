@@ -23,6 +23,8 @@ pub struct GenericEntry {
     pub generic_type: String,
     /// constraint (x downto y)      
     pub constraint: Option<String>,
+    /// sizes (one item per dimension)
+    pub sizes: Vec<String>,
     /// comment or description
     pub description: Option<String>,
     /// default value
@@ -41,6 +43,8 @@ pub struct PortEntry {
     pub port_type: String,
     /// constraint (x downto y)       
     pub constraint: Option<String>,
+    /// sizes (one item per dimension)
+    pub sizes: Vec<String>,
     /// comment or description
     pub description: Option<String>,
     /// default value
@@ -102,6 +106,7 @@ pub fn get_entity_declaration_from_design(
                                     name: name,
                                     generic_type: type_info.get_type_name(),
                                     constraint: type_info.get_constraint(),
+                                    sizes: type_info.get_sizes(),
                                     description: description.clone(),
                                     default_value: default.clone(),
                                 });
@@ -153,6 +158,7 @@ pub fn get_entity_declaration_from_design(
                                     mode: mode_str.clone(),
                                     port_type: type_info.get_type_name(),
                                     constraint: type_info.get_constraint(),
+                                    sizes: type_info.get_sizes(),
                                     description,
                                     default_value: default_value.clone(),
                                 });
@@ -175,6 +181,7 @@ pub fn get_entity_declaration_from_design(
                                     mode: "file".to_owned(),
                                     port_type: typ.clone(),
                                     constraint: None,
+                                    sizes: Vec::new(),
                                     description,
                                     default_value: None,
                                 });
@@ -217,6 +224,7 @@ mod tests {
         assert_eq!(generics[0].name, "flag");
         assert_eq!(generics[0].generic_type, "boolean");
         assert_eq!(generics[0].constraint, None);
+        assert_eq!(generics[0].sizes, Vec::<String>::new());
         assert_eq!(
             generics[0].description,
             Some("a flag, can be true or false".to_owned())
@@ -225,6 +233,7 @@ mod tests {
         assert_eq!(generics[1].name, "value");
         assert_eq!(generics[1].generic_type, "std_logic_vector");
         assert_eq!(generics[1].constraint, Some("(15 downto 0)".to_owned()));
+        assert_eq!(generics[1].sizes, vec!["16"]);
         assert_eq!(
             generics[1].description,
             Some("a value with a default".to_owned())

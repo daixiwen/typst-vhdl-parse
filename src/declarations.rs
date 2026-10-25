@@ -32,6 +32,8 @@ pub struct ObjectDescription {
     pub object_type: String,
     /// constraint (x downto y)
     pub constraint: Option<String>,
+    /// sizes (one item per dimension)
+    pub sizes: Vec<String>,
     /// constant value or signal initial value
     pub expression: Option<String>,
     /// a description for the signal (comment)
@@ -89,6 +91,8 @@ pub struct TypeDefinitionRecordElement {
     pub element_type: String,
     /// type constraint of the record element (x downto y)
     pub element_constraint: Option<String>,
+    /// sizes (one item per dimension)
+    pub element_sizes : Vec<String>,
     /// description (comment)
     pub description: Option<String>,
 }
@@ -100,6 +104,8 @@ pub struct TypeDefinitionSubtype {
     pub subtype: String,
     /// constraint (x downto y)
     pub constraint: Option<String>,
+    /// sizes (one item per dimension)
+    pub sizes : Vec<String>,
 }
 
 /// Return from the analysys function
@@ -167,6 +173,7 @@ fn explore_declarations(
                         name: ident.tree.item.to_string(),
                         object_type: type_info.get_type_name(),
                         constraint: type_info.get_constraint(),
+                        sizes: type_info.get_sizes(),
                         expression: expression.clone(),
                         description: description.clone(),
                     })
@@ -238,6 +245,7 @@ fn explore_declarations(
                                             element_name: f.to_string(),
                                             element_type: element_type_info.get_type_name(),
                                             element_constraint: element_type_info.get_constraint(),
+                                            element_sizes: element_type_info.get_sizes(),
                                             description: element_description.clone(),
                                         })
                                     })
@@ -253,6 +261,7 @@ fn explore_declarations(
                             TypeDefinition::SubType(TypeDefinitionSubtype {
                                 subtype: type_info.get_type_name(),
                                 constraint: type_info.get_constraint(),
+                                sizes: type_info.get_sizes()
                             }),
                         ))},
                     _ => None,
@@ -323,6 +332,7 @@ mod tests {
         assert_eq!(my_constant.name, "c_ones");
         assert_eq!(my_constant.object_type, "std_logic_vector");
         assert_eq!(my_constant.constraint, Some("(31 downto 0)".to_owned()));
+        assert_eq!(my_constant.sizes, vec!["32"]);
         assert_eq!(my_constant.expression, Some("(others => '1')".to_owned()));
         assert_eq!(my_constant.description, Some("a constant".to_owned()));
 
@@ -334,6 +344,7 @@ mod tests {
         assert_eq!(my_signal.name, "fsm");
         assert_eq!(my_signal.object_type, "fsm_wrapper_t");
         assert_eq!(my_signal.constraint, None);
+        assert_eq!(my_signal.sizes, Vec::<String>::new());
         assert_eq!(my_signal.expression, None);
         assert_eq!(
             my_signal.description,
@@ -345,6 +356,7 @@ mod tests {
         assert_eq!(my_signal.name, "mysignal");
         assert_eq!(my_signal.object_type, "unsigned");
         assert_eq!(my_signal.constraint, Some("(15 downto 0)".to_owned()));
+        assert_eq!(my_signal.sizes, vec!["16"]);
         assert_eq!(my_signal.expression, Some("(others => '0')".to_owned()));
         assert_eq!(
             my_signal.description,
@@ -412,6 +424,7 @@ mod tests {
             assert_eq!(record.get(0).unwrap().element_name, "state");
             assert_eq!(record.get(0).unwrap().element_type, "fsm_t");
             assert_eq!(record.get(0).unwrap().element_constraint, None);
+            assert_eq!(record.get(0).unwrap().element_sizes, Vec::<String>::new());
             assert_eq!(
                 record.get(0).unwrap().description,
                 Some("the actual fsm type".to_owned())
@@ -422,6 +435,7 @@ mod tests {
                 record.get(1).unwrap().element_constraint,
                 Some("(31 downto 0)".to_owned())
             );
+            assert_eq!(record.get(1).unwrap().element_sizes, vec!["32"]);
             assert_eq!(
                 record.get(1).unwrap().description,
                 Some("a type with a constraint".to_owned())
@@ -439,6 +453,7 @@ mod tests {
         if let TypeDefinition::SubType(subtype) = &byte_type.definition {
             assert_eq!(subtype.subtype, "std_logic_vector");
             assert_eq!(subtype.constraint, Some("(7 downto 0)".to_owned()));
+            assert_eq!(subtype.sizes, vec!["8"]);
         } else {
             panic!("wrong type definition")
         }
