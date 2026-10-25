@@ -11,7 +11,7 @@ pub struct TypeInfo {
 }
 
 /// get the size from a range object
-fn range_to_size(range: &Range) -> String {
+pub fn range_to_size(range: &Range) -> String {
     match range {
         Range::Attribute(_) => "".to_owned(),
         Range::Range(range) => {
@@ -78,7 +78,7 @@ impl TypeInfo {
         TypeInfo {
             type_name,
             constraint,
-            type_sizes
+            type_sizes,
         }
     }
 

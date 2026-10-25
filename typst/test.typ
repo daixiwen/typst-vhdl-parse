@@ -352,7 +352,10 @@ types == (
       name: "matrix_t",
       kind: "array",
       definition: (
-        Array: (range: "31 downto 0,7 downto 0", subtype: "byte_t"),
+        Array: (
+          range: "31 downto 0,7 downto 0",
+          sizes: ("32","8"), 
+          subtype: "byte_t"),
       ),
       description: "an array",
     ),

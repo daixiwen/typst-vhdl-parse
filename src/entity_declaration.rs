@@ -4,8 +4,8 @@ use vhdl_lang::ast::{AnyDesignUnit, AnyPrimaryUnit, InterfaceDeclaration, ModeIn
 
 use crate::comments::find_object_description;
 use crate::parse_store::get_parsed;
-use crate::{decode_typst_arg, decode_typst_arg_id, encode_typst_return};
 use crate::type_info::TypeInfo;
+use crate::{decode_typst_arg, decode_typst_arg_id, encode_typst_return};
 
 #[cfg(target_arch = "wasm32")]
 use wasm_minimal_protocol::wasm_func;
@@ -123,27 +123,30 @@ pub fn get_entity_declaration_from_design(
                         // normal port (not file)
                         InterfaceDeclaration::Object(obj_decl) => {
                             // Get mode (direction) and type from the mode indication
-                            let (mode_str, type_info, default_value) =
-                                match &obj_decl.mode {
-                                    ModeIndication::Simple(simple) => {
-                                        let mode = simple
-                                            .mode
-                                            .as_ref()
-                                            .map(|m| m.item.to_string())
-                                            .unwrap_or_else(|| "in".to_string()); // default mode is "in"
-                                        let type_info = TypeInfo::new(&simple.subtype_indication);
-                                        let default_value = simple
-                                            .expression
-                                            .as_ref()
-                                            .map(|expression| expression.to_string());
-                                        (mode, type_info, default_value)
-                                    }
-                                    ModeIndication::View(view) => {
-                                        let typ = view.name.to_string();
+                            let (mode_str, type_info, default_value) = match &obj_decl.mode {
+                                ModeIndication::Simple(simple) => {
+                                    let mode = simple
+                                        .mode
+                                        .as_ref()
+                                        .map(|m| m.item.to_string())
+                                        .unwrap_or_else(|| "in".to_string()); // default mode is "in"
+                                    let type_info = TypeInfo::new(&simple.subtype_indication);
+                                    let default_value = simple
+                                        .expression
+                                        .as_ref()
+                                        .map(|expression| expression.to_string());
+                                    (mode, type_info, default_value)
+                                }
+                                ModeIndication::View(view) => {
+                                    let typ = view.name.to_string();
 
-                                        ("view".to_string(), TypeInfo::fill(typ, None, Vec::new()), None)
-                                    }
-                                };
+                                    (
+                                        "view".to_string(),
+                                        TypeInfo::fill(typ, None, Vec::new()),
+                                        None,
+                                    )
+                                }
+                            };
 
                             for id in &obj_decl.idents {
                                 let name = id.tree.item.name_utf8();

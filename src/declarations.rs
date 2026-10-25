@@ -2,9 +2,10 @@ use serde::Serialize;
 use vhdl_lang::{
     HasTokenSpan, Token,
     ast::{
-        AnyDesignUnit, AnyPrimaryUnit, AnySecondaryUnit,
+        AnyDesignUnit, AnyPrimaryUnit, AnySecondaryUnit, ArrayIndex,
+        ArrayIndex::IndexSubtypeDefintion,
         Declaration::{self, Object, Type},
-        DesignFile,
+        DesignFile, DiscreteRange,
         ObjectClass::{Constant, Signal},
         TypeDefinition::{Array, Enumeration, Record, Subtype},
         token_range::WithTokenSpan,
@@ -13,7 +14,7 @@ use vhdl_lang::{
 
 use crate::comments::find_object_description;
 use crate::parse_store::get_parsed;
-use crate::type_info::TypeInfo;
+use crate::type_info::{TypeInfo, range_to_size};
 use crate::{decode_typst_arg, decode_typst_arg_id, encode_typst_return};
 
 #[cfg(target_arch = "wasm32")]
@@ -79,6 +80,8 @@ pub struct TypeDefinitionArray {
     pub range: String,
     /// array element type
     pub subtype: String,
+    /// sizes (one item per dimension)
+    pub sizes: Vec<String>,
 }
 
 /// Describes a record element
@@ -92,7 +95,7 @@ pub struct TypeDefinitionRecordElement {
     /// type constraint of the record element (x downto y)
     pub element_constraint: Option<String>,
     /// sizes (one item per dimension)
-    pub element_sizes : Vec<String>,
+    pub element_sizes: Vec<String>,
     /// description (comment)
     pub description: Option<String>,
 }
@@ -105,7 +108,7 @@ pub struct TypeDefinitionSubtype {
     /// constraint (x downto y)
     pub constraint: Option<String>,
     /// sizes (one item per dimension)
-    pub sizes : Vec<String>,
+    pub sizes: Vec<String>,
 }
 
 /// Return from the analysys function
@@ -216,11 +219,31 @@ fn explore_declarations(
                         let indices_str: Vec<String> =
                             indices.iter().map(|index| index.to_string()).collect();
 
+                        // there are so many possibilities here for how the range is expressed it's almost ridiculous
+                        let sizes: Vec<String> = indices
+                            .iter()
+                            .map(|index| match index {
+                                IndexSubtypeDefintion(name) => name.to_string(),
+                                ArrayIndex::Discrete(discrete_range) => {
+                                    match &discrete_range.item {
+                                        DiscreteRange::Discrete(_, range_option) => {
+                                            match range_option {
+                                                None => String::new(),
+                                                Some(range) => range_to_size(range),
+                                            }
+                                        }
+                                        DiscreteRange::Range(range) => range_to_size(range),
+                                    }
+                                }
+                            })
+                            .collect();
+
                         Some((
                             "array",
                             TypeDefinition::Array(TypeDefinitionArray {
                                 range: indices_str.join(","),
                                 subtype: subtype.to_string(),
+                                sizes,
                             }),
                         ))
                     }
@@ -254,16 +277,17 @@ fn explore_declarations(
                             ),
                         ))
                     }
-                    Subtype(subtype) =>  {
+                    Subtype(subtype) => {
                         let type_info = TypeInfo::new(&subtype);
                         Some((
                             "subtype",
                             TypeDefinition::SubType(TypeDefinitionSubtype {
                                 subtype: type_info.get_type_name(),
                                 constraint: type_info.get_constraint(),
-                                sizes: type_info.get_sizes()
+                                sizes: type_info.get_sizes(),
                             }),
-                        ))},
+                        ))
+                    }
                     _ => None,
                 };
 
@@ -466,6 +490,7 @@ mod tests {
 
         if let TypeDefinition::Array(array) = &matrix_type.definition {
             assert_eq!(array.range, "31 downto 0,7 downto 0");
+            assert_eq!(array.sizes, vec!["32", "8"]);
             assert_eq!(array.subtype, "byte_t");
         } else {
             panic!("wrong type definition")
