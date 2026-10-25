@@ -5,6 +5,7 @@ use vhdl_lang::ast::{AnyDesignUnit, AnyPrimaryUnit, InterfaceDeclaration, ModeIn
 use crate::comments::find_object_description;
 use crate::parse_store::get_parsed;
 use crate::{decode_typst_arg, decode_typst_arg_id, encode_typst_return};
+use crate::type_info::TypeInfo;
 
 #[cfg(target_arch = "wasm32")]
 use wasm_minimal_protocol::wasm_func;
@@ -82,12 +83,7 @@ pub fn get_entity_declaration_from_design(
                     if let InterfaceDeclaration::Object(obj_decl) = generic {
                         if let ModeIndication::Simple(simple) = &obj_decl.mode {
                             // extract all the information to create the GenericEntry
-                            let type_str = simple.subtype_indication.type_mark.to_string();
-                            let constraint = simple
-                                .subtype_indication
-                                .constraint
-                                .as_ref()
-                                .map(|constraint| constraint.to_string());
+                            let type_info = TypeInfo::new(&simple.subtype_indication);
                             let default = simple
                                 .expression
                                 .as_ref()
@@ -104,8 +100,8 @@ pub fn get_entity_declaration_from_design(
 
                                 generics.push(GenericEntry {
                                     name: name,
-                                    generic_type: type_str.clone(),
-                                    constraint: constraint.clone(),
+                                    generic_type: type_info.get_type_name(),
+                                    constraint: type_info.get_constraint(),
                                     description: description.clone(),
                                     default_value: default.clone(),
                                 });
@@ -122,7 +118,7 @@ pub fn get_entity_declaration_from_design(
                         // normal port (not file)
                         InterfaceDeclaration::Object(obj_decl) => {
                             // Get mode (direction) and type from the mode indication
-                            let (mode_str, type_str, constraint_str, default_value) =
+                            let (mode_str, type_info, default_value) =
                                 match &obj_decl.mode {
                                     ModeIndication::Simple(simple) => {
                                         let mode = simple
@@ -130,22 +126,17 @@ pub fn get_entity_declaration_from_design(
                                             .as_ref()
                                             .map(|m| m.item.to_string())
                                             .unwrap_or_else(|| "in".to_string()); // default mode is "in"
-                                        let typ = simple.subtype_indication.type_mark.to_string();
-                                        let constraint = simple
-                                            .subtype_indication
-                                            .constraint
-                                            .as_ref()
-                                            .map(|constraint| constraint.to_string());
+                                        let type_info = TypeInfo::new(&simple.subtype_indication);
                                         let default_value = simple
                                             .expression
                                             .as_ref()
                                             .map(|expression| expression.to_string());
-                                        (mode, typ, constraint, default_value)
+                                        (mode, type_info, default_value)
                                     }
                                     ModeIndication::View(view) => {
                                         let typ = view.name.to_string();
 
-                                        ("view".to_string(), typ, None, None)
+                                        ("view".to_string(), TypeInfo::fill(typ, None, Vec::new()), None)
                                     }
                                 };
 
@@ -160,8 +151,8 @@ pub fn get_entity_declaration_from_design(
                                 ports.push(PortEntry {
                                     name: name,
                                     mode: mode_str.clone(),
-                                    port_type: type_str.clone(),
-                                    constraint: constraint_str.clone(),
+                                    port_type: type_info.get_type_name(),
+                                    constraint: type_info.get_constraint(),
                                     description,
                                     default_value: default_value.clone(),
                                 });

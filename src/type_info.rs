@@ -73,14 +73,26 @@ impl TypeInfo {
         }
     }
 
+    /// fill with ready parsed information
+    pub fn fill(type_name: String, constraint: Option<String>, type_sizes: Vec<String>) -> Self {
+        TypeInfo {
+            type_name,
+            constraint,
+            type_sizes
+        }
+    }
+
+    /// return a copy of the type name
     pub fn get_type_name(&self) -> String {
         self.type_name.clone()
     }
 
+    /// return a copy of the constraint
     pub fn get_constraint(&self) -> Option<String> {
         self.constraint.clone()
     }
 
+    /// return a copy of the sizes table
     pub fn get_sizes(&self) -> Vec<String> {
         self.type_sizes.clone()
     }

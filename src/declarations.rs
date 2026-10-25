@@ -246,16 +246,15 @@ fn explore_declarations(
                             ),
                         ))
                     }
-                    Subtype(subtype) => Some((
-                        "subtype",
-                        TypeDefinition::SubType(TypeDefinitionSubtype {
-                            subtype: subtype.type_mark.to_string(),
-                            constraint: subtype
-                                .constraint
-                                .as_ref()
-                                .map(|constraint| constraint.to_string()),
-                        }),
-                    )),
+                    Subtype(subtype) =>  {
+                        let type_info = TypeInfo::new(&subtype);
+                        Some((
+                            "subtype",
+                            TypeDefinition::SubType(TypeDefinitionSubtype {
+                                subtype: type_info.get_type_name(),
+                                constraint: type_info.get_constraint(),
+                            }),
+                        ))},
                     _ => None,
                 };
 
