@@ -1,6 +1,6 @@
 [package]
 name = "vhdl-parse"
-version = "0.1.0"
+version = "0.2.0"
 entrypoint = "vhdl_parse.typ"
 authors = ["Sylvain Tertois <https://github.com/daixiwen>"]
 license = "Unlicense"

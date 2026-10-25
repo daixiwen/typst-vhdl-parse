@@ -5,7 +5,7 @@
 #import "../vhdl_parse.typ" as vhdl-parse
 
 // current version
-#let version = "0.1.0"
+#let version = "0.2.0"
 #let release_date = datetime.today().display()
 
 // document template

@@ -551,7 +551,7 @@
 ///    table.header([name], [type], [description], [value]),
 ///    ..for entry in constants {
 ///        ( [#entry.name], 
-///          [#{entry.object_type}#{entry.constraint}], 
+///          [#{entry.object-type}#{entry.constraint}], 
 ///          [#entry.description], 
 ///          [#entry.expression])
 ///    }
@@ -610,7 +610,7 @@
 ///    table.header([name], [type], [description], [value]),
 ///    ..for entry in signals {
 ///        ( [#entry.name], 
-///          [#{entry.object_type}#{entry.constraint}], 
+///          [#{entry.object-type}#{entry.constraint}], 
 ///          [#entry.description], 
 ///          [#entry.expression])
 ///    }
