@@ -2,9 +2,10 @@ use serde::Serialize;
 use vhdl_lang::{
     HasTokenSpan, Token,
     ast::{
-        AnyDesignUnit, AnyPrimaryUnit, AnySecondaryUnit,
+        AnyDesignUnit, AnyPrimaryUnit, AnySecondaryUnit, ArrayIndex,
+        ArrayIndex::IndexSubtypeDefintion,
         Declaration::{self, Object, Type},
-        DesignFile,
+        DesignFile, DiscreteRange,
         ObjectClass::{Constant, Signal},
         TypeDefinition::{Array, Enumeration, Record, Subtype},
         token_range::WithTokenSpan,
@@ -13,6 +14,7 @@ use vhdl_lang::{
 
 use crate::comments::find_object_description;
 use crate::parse_store::get_parsed;
+use crate::type_info::{TypeInfo, range_to_size};
 use crate::{decode_typst_arg, decode_typst_arg_id, encode_typst_return};
 
 #[cfg(target_arch = "wasm32")]
@@ -23,6 +25,7 @@ wasm_minimal_protocol::initiate_protocol!();
 
 /// Describes a signal or a constant
 #[derive(Serialize)]
+#[serde(rename_all = "kebab-case")]
 pub struct ObjectDescription {
     /// signal or constant name
     pub name: String,
@@ -30,6 +33,8 @@ pub struct ObjectDescription {
     pub object_type: String,
     /// constraint (x downto y)
     pub constraint: Option<String>,
+    /// sizes (one item per dimension)
+    pub sizes: Vec<String>,
     /// constant value or signal initial value
     pub expression: Option<String>,
     /// a description for the signal (comment)
@@ -60,6 +65,7 @@ pub enum TypeDefinition {
 
 /// Describes an enumeration element
 #[derive(Serialize)]
+#[serde(rename_all = "kebab-case")]
 pub struct TypeDefinitionEnumElement {
     /// name of the enum element
     pub element_name: String,
@@ -74,15 +80,22 @@ pub struct TypeDefinitionArray {
     pub range: String,
     /// array element type
     pub subtype: String,
+    /// sizes (one item per dimension)
+    pub sizes: Vec<String>,
 }
 
 /// Describes a record element
 #[derive(Serialize)]
+#[serde(rename_all = "kebab-case")]
 pub struct TypeDefinitionRecordElement {
     /// name of the record element
     pub element_name: String,
     /// type of the record element
     pub element_type: String,
+    /// type constraint of the record element (x downto y)
+    pub element_constraint: Option<String>,
+    /// sizes (one item per dimension)
+    pub element_sizes: Vec<String>,
     /// description (comment)
     pub description: Option<String>,
 }
@@ -94,6 +107,8 @@ pub struct TypeDefinitionSubtype {
     pub subtype: String,
     /// constraint (x downto y)
     pub constraint: Option<String>,
+    /// sizes (one item per dimension)
+    pub sizes: Vec<String>,
 }
 
 /// Return from the analysys function
@@ -141,12 +156,7 @@ fn explore_declarations(
         match &declaration.item {
             Object(object_declaration) => {
                 // extract details about the objects
-                let object_type = object_declaration.subtype_indication.type_mark.to_string();
-                let constraint = object_declaration
-                    .subtype_indication
-                    .constraint
-                    .as_ref()
-                    .map(|constraint| constraint.to_string());
+                let type_info = TypeInfo::new(&object_declaration.subtype_indication);
                 let expression = object_declaration
                     .expression
                     .as_ref()
@@ -164,8 +174,9 @@ fn explore_declarations(
                     .iter()
                     .map(|ident| ObjectDescription {
                         name: ident.tree.item.to_string(),
-                        object_type: object_type.clone(),
-                        constraint: constraint.clone(),
+                        object_type: type_info.get_type_name(),
+                        constraint: type_info.get_constraint(),
+                        sizes: type_info.get_sizes(),
                         expression: expression.clone(),
                         description: description.clone(),
                     })
@@ -206,13 +217,33 @@ fn explore_declarations(
                     )),
                     Array(indices, _, subtype) => {
                         let indices_str: Vec<String> =
-                            indices.iter().map(|index| index.to_string()).collect();
+                            indices.iter().map(|index| format!("({})", index)).collect();
+
+                        // there are so many possibilities here for how the range is expressed it's almost ridiculous
+                        let sizes: Vec<String> = indices
+                            .iter()
+                            .map(|index| match index {
+                                IndexSubtypeDefintion(name) => name.to_string(),
+                                ArrayIndex::Discrete(discrete_range) => {
+                                    match &discrete_range.item {
+                                        DiscreteRange::Discrete(_, range_option) => {
+                                            match range_option {
+                                                None => String::new(),
+                                                Some(range) => range_to_size(range),
+                                            }
+                                        }
+                                        DiscreteRange::Range(range) => range_to_size(range),
+                                    }
+                                }
+                            })
+                            .collect();
 
                         Some((
                             "array",
                             TypeDefinition::Array(TypeDefinitionArray {
-                                range: indices_str.join(","),
+                                range: indices_str.join(""),
                                 subtype: subtype.to_string(),
+                                sizes,
                             }),
                         ))
                     }
@@ -225,7 +256,7 @@ fn explore_declarations(
                                 elements
                                     .iter()
                                     .map(|e| {
-                                        let element_type = e.subtype.to_string();
+                                        let element_type_info = TypeInfo::new(&e.subtype);
                                         let element_description = find_object_description(
                                             tokens,
                                             e.get_start_token(),
@@ -235,7 +266,9 @@ fn explore_declarations(
 
                                         e.idents.iter().map(move |f| TypeDefinitionRecordElement {
                                             element_name: f.to_string(),
-                                            element_type: element_type.clone(),
+                                            element_type: element_type_info.get_type_name(),
+                                            element_constraint: element_type_info.get_constraint(),
+                                            element_sizes: element_type_info.get_sizes(),
                                             description: element_description.clone(),
                                         })
                                     })
@@ -244,16 +277,17 @@ fn explore_declarations(
                             ),
                         ))
                     }
-                    Subtype(subtype) => Some((
-                        "subtype",
-                        TypeDefinition::SubType(TypeDefinitionSubtype {
-                            subtype: subtype.type_mark.to_string(),
-                            constraint: subtype
-                                .constraint
-                                .as_ref()
-                                .map(|constraint| constraint.to_string()),
-                        }),
-                    )),
+                    Subtype(subtype) => {
+                        let type_info = TypeInfo::new(&subtype);
+                        Some((
+                            "subtype",
+                            TypeDefinition::SubType(TypeDefinitionSubtype {
+                                subtype: type_info.get_type_name(),
+                                constraint: type_info.get_constraint(),
+                                sizes: type_info.get_sizes(),
+                            }),
+                        ))
+                    }
                     _ => None,
                 };
 
@@ -315,13 +349,14 @@ mod tests {
         let sigs_consts = get_declarations(design, false).unwrap();
 
         // check the constants list
-        assert_eq!(sigs_consts.constants.len(), 1);
+        assert_eq!(sigs_consts.constants.len(), 3);
 
-        // check the only constant
+        // check the first constant
         let my_constant = sigs_consts.constants.get(0).unwrap();
         assert_eq!(my_constant.name, "c_ones");
         assert_eq!(my_constant.object_type, "std_logic_vector");
         assert_eq!(my_constant.constraint, Some("(31 downto 0)".to_owned()));
+        assert_eq!(my_constant.sizes, vec!["32"]);
         assert_eq!(my_constant.expression, Some("(others => '1')".to_owned()));
         assert_eq!(my_constant.description, Some("a constant".to_owned()));
 
@@ -333,6 +368,7 @@ mod tests {
         assert_eq!(my_signal.name, "fsm");
         assert_eq!(my_signal.object_type, "fsm_wrapper_t");
         assert_eq!(my_signal.constraint, None);
+        assert_eq!(my_signal.sizes, Vec::<String>::new());
         assert_eq!(my_signal.expression, None);
         assert_eq!(
             my_signal.description,
@@ -344,6 +380,7 @@ mod tests {
         assert_eq!(my_signal.name, "mysignal");
         assert_eq!(my_signal.object_type, "unsigned");
         assert_eq!(my_signal.constraint, Some("(15 downto 0)".to_owned()));
+        assert_eq!(my_signal.sizes, vec!["16"]);
         assert_eq!(my_signal.expression, Some("(others => '0')".to_owned()));
         assert_eq!(
             my_signal.description,
@@ -407,12 +444,25 @@ mod tests {
         );
 
         if let TypeDefinition::Record(record) = &fsm_wrapper_type.definition {
-            assert_eq!(record.len(), 1);
+            assert_eq!(record.len(), 2);
             assert_eq!(record.get(0).unwrap().element_name, "state");
             assert_eq!(record.get(0).unwrap().element_type, "fsm_t");
+            assert_eq!(record.get(0).unwrap().element_constraint, None);
+            assert_eq!(record.get(0).unwrap().element_sizes, Vec::<String>::new());
             assert_eq!(
                 record.get(0).unwrap().description,
                 Some("the actual fsm type".to_owned())
+            );
+            assert_eq!(record.get(1).unwrap().element_name, "data");
+            assert_eq!(record.get(1).unwrap().element_type, "std_logic_vector");
+            assert_eq!(
+                record.get(1).unwrap().element_constraint,
+                Some("(31 downto 0)".to_owned())
+            );
+            assert_eq!(record.get(1).unwrap().element_sizes, vec!["32"]);
+            assert_eq!(
+                record.get(1).unwrap().description,
+                Some("a type with a constraint".to_owned())
             );
         } else {
             panic!("wrong type definition")
@@ -427,6 +477,7 @@ mod tests {
         if let TypeDefinition::SubType(subtype) = &byte_type.definition {
             assert_eq!(subtype.subtype, "std_logic_vector");
             assert_eq!(subtype.constraint, Some("(7 downto 0)".to_owned()));
+            assert_eq!(subtype.sizes, vec!["8"]);
         } else {
             panic!("wrong type definition")
         }
@@ -438,7 +489,8 @@ mod tests {
         assert_eq!(matrix_type.description, Some("an array".to_owned()));
 
         if let TypeDefinition::Array(array) = &matrix_type.definition {
-            assert_eq!(array.range, "31 downto 0,7 downto 0");
+            assert_eq!(array.range, "(0 to num_elements_x - 1)(0 to num_elements_y - 1)");
+            assert_eq!(array.sizes, vec!["num_elements_x", "num_elements_y"]);
             assert_eq!(array.subtype, "byte_t");
         } else {
             panic!("wrong type definition")

@@ -28,6 +28,9 @@ end entity test;
 
 architecture rtl of test is
 
+    -- a constant
+  constant c_ones : std_logic_vector(31 downto 0) := (others => '1');
+
     -- enumeration type for the FSM
   type fsm_t is (
     reset, -- reset, initial state
@@ -39,13 +42,17 @@ architecture rtl of test is
   type fsm_wrapper_t is record
       -- the actual fsm type
     state : fsm_t;
+      -- a type with a constraint
+    data : std_logic_vector(31 downto 0);
   end record;
 
     -- a subtype
   subtype byte_t is std_logic_vector(7 downto 0);
 
+  constant num_elements_x: natural := 16;
+  constant num_elements_y: natural := 8;
     -- an array
-  type matrix_t is array (31 downto 0, 7 downto 0) of byte_t;
+  type matrix_t is array (0 to num_elements_x-1, 0 to num_elements_y-1) of byte_t;
 
     -- state machine signal 
   signal fsm: fsm_wrapper_t;
@@ -54,9 +61,6 @@ architecture rtl of test is
   alias fsm_state is fsm.state;
 
   signal mysignal : unsigned(15 downto 0) := (others => '0'); -- a signal with a comment on the same line
-
-    -- a constant
-  constant c_ones : std_logic_vector(31 downto 0) := (others => '1');
 
 begin  
 

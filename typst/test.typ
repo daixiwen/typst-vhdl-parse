@@ -19,6 +19,7 @@
       mode: "in",
       port-type: "std_logic",
       constraint: none,
+      sizes: (),
       description: "main clock",
       default-value: none,
     ),
@@ -27,6 +28,7 @@
       mode: "in",
       port-type: "std_logic",
       constraint: none,
+      sizes: (),
       description: "main reset, synchronous, active high",
       default-value: "'0'",
     ),
@@ -35,6 +37,7 @@
       mode: "out",
       port-type: "std_logic",
       constraint: none,
+      sizes: (),
       description: "a regular output",
       default-value: none,
     ),
@@ -43,6 +46,7 @@
       mode: "in",
       port-type: "std_logic",
       constraint: none,
+      sizes: (),
       description: "one input",
       default-value: none,
     ),
@@ -51,6 +55,7 @@
       mode: "out",
       port-type: "std_logic",
       constraint: none,
+      sizes: (),
       description: "another output",
       default-value: none,
     ),
@@ -59,6 +64,7 @@
       mode: "in",
       port-type: "std_logic",
       constraint: none,
+      sizes: (),
       description: "another input",
       default-value: none,
     ),
@@ -67,6 +73,7 @@
       mode: "in",
       port-type: "std_logic_vector",
       constraint: "(15 downto 0)",
+      sizes: ("16",),
       description: none,
       default-value: none,
     ),
@@ -75,6 +82,7 @@
       mode: "out",
       port-type: "std_logic_vector",
       constraint: "(15 downto 0)",
+      sizes: ("16",),
       description: "data out",
       default-value: none,
     ),
@@ -92,6 +100,7 @@
       name: "flag",
       generic-type: "boolean",
       constraint: none,
+      sizes: (),
       description: "a flag, can be true or false",
       default-value: none,
     ),
@@ -99,6 +108,7 @@
       name: "value",
       generic-type: "std_logic_vector",
       constraint: "(15 downto 0)",
+      sizes: ("16",),
       description: "a value with a default",
       default-value: "x\"DEAD\"",
     ),
@@ -112,7 +122,7 @@
 
 #assert(
   fsm == (
-    default_state: "reset",
+    default-state: "reset",
     states: (
       (
         name: "reset",
@@ -216,8 +226,8 @@
       label: "my_instance",
       entity: "work.comp",
       description: "an example instantiation",
-      generics_map: ((origin: "enabled", expression: "true"),),
-      ports_map: (
+      generics-map: ((origin: "enabled", expression: "true"),),
+      ports-map: (
         (origin: "clk", expression: "clock"),
         (origin: "rst", expression: "reset"),
         (origin: "input", expression: "input_b"),
@@ -231,15 +241,31 @@
 == Constants
 
 #let constants = vhdl-parse.constants-list(parsed-file)
-
 #assert(
   constants == (
     (
       name: "c_ones",
-      object_type: "std_logic_vector",
+      object-type: "std_logic_vector",
       constraint: "(31 downto 0)",
+      sizes: ("32",),
       expression: "(others => '1')",
       description: "a constant",
+    ),
+    (
+      name: "num_elements_x",
+      object-type: "natural",
+      constraint: none,
+      sizes: (),
+      expression: "16",
+      description: none,
+    ),
+    (
+      name: "num_elements_y",
+      object-type: "natural",
+      constraint: none,
+      sizes: (),
+      expression: "8",
+      description: none,
     ),
   ),
   message: "wrong constants",
@@ -253,15 +279,17 @@
   signals == (
     (
       name: "fsm",
-      object_type: "fsm_wrapper_t",
+      object-type: "fsm_wrapper_t",
       constraint: none,
+      sizes: (),
       expression: none,
       description: "state machine signal",
     ),
     (
       name: "mysignal",
-      object_type: "unsigned",
+      object-type: "unsigned",
       constraint: "(15 downto 0)",
+      sizes: ("16",),
       expression: "(others => '0')",
       description: "a signal with a comment on the same line",
     ),
@@ -281,19 +309,19 @@ types == (
       definition: (
         Enumeration: (
           (
-            element_name: "reset",
+            element-name: "reset",
             description: "reset, initial state",
           ),
           (
-            element_name: "idle",
+            element-name: "idle",
             description: "state when not doing anything",
           ),
           (
-            element_name: "read_input",
+            element-name: "read_input",
             description: "check what's on the inputs",
           ),
           (
-            element_name: "write_output",
+            element-name: "write_output",
             description: "do something on the outputs",
           ),
         ),
@@ -306,9 +334,18 @@ types == (
       definition: (
         Record: (
           (
-            element_name: "state",
-            element_type: "fsm_t",
+            element-name: "state",
+            element-type: "fsm_t",
+            element-constraint: none,
+            element-sizes: (),
             description: "the actual fsm type",
+          ),
+          (
+            element-name: "data",
+            element-type: "std_logic_vector",
+            element-constraint: "(31 downto 0)",
+            element-sizes: ("32",),
+            description: "a type with a constraint",
           ),
         ),
       ),
@@ -321,6 +358,7 @@ types == (
         SubType: (
           subtype: "std_logic_vector",
           constraint: "(7 downto 0)",
+          sizes: ("8",),
         ),
       ),
       description: "a subtype",
@@ -329,7 +367,10 @@ types == (
       name: "matrix_t",
       kind: "array",
       definition: (
-        Array: (range: "31 downto 0,7 downto 0", subtype: "byte_t"),
+        Array: (
+          range: "(0 to num_elements_x - 1)(0 to num_elements_y - 1)",
+          sizes: ("num_elements_x", "num_elements_y"), 
+          subtype: "byte_t"),
       ),
       description: "an array",
     ),

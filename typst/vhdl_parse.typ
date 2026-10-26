@@ -32,7 +32,7 @@
     contents, 
       /// (optional) The VHDL variant -> string | int
     vhdl-variant : 2008, 
-      /// (opttional) The default comment priority. Either "leading" or "trailing", see #lower[@sec-comments] -> string
+      /// (optional) The default comment priority. Either "leading" or "trailing", see #lower[@sec-comments] -> string
     comment-priority : "trailing") = {
 
   // arguments check and conversion
@@ -69,7 +69,8 @@
 ///   ("name",         "string",        "the port name"                                      ),
 ///   ("mode",         "string",        "the port mode (in, out, inout, buffer)"             ),
 ///   ("port-type",    "string",        "the VHDL type of the port"                          ),
-///   ("constraint",   "string or none","the type constraint, for example: \"(15 downto 0)\""),
+///   ("constraint",   "string or none",[the type constraint, see #lower[@sec-types]]        ),
+///   ("sizes",        "array",         [the type sizes, see #lower[@sec-types]]             ),
 ///   ("description",  "string or none","a comment describing the port"                      ),
 ///   ("default-value","string or none","the port default value"                             ),
 /// 
@@ -86,12 +87,13 @@
 /// Ports list:
 /// 
 /// #table(
-///    columns: (2cm, 1.5cm, 4cm, 6cm),
-///    table.header([name], [mode], [type], [description]),
+///    columns: (2cm, 1.5cm, 3.5cm, 1.5cm, 6cm),
+///    table.header([name], [mode], [type], [size], [description]),
 ///    ..for entry in ports {
 ///     ( [#entry.name], 
 ///       [#entry.mode], 
-///       [#{entry.port-type}#{entry.constraint}],
+///       [#entry.port-type],
+///       [#entry.sizes.join("x")],
 ///       [#entry.description])
 ///     }
 /// )
@@ -132,7 +134,8 @@
 ///  // elem name      elem type        elem description
 ///   ("name",         "string",        "the generic name"                                   ),
 ///   ("generic-type", "string",        "the VHDL type of the generic"                       ),
-///   ("constraint",   "string or none","the type constraint, for example: \"(15 downto 0)\""),
+///   ("constraint",   "string or none",[the type constraint, see #lower[@sec-types]]        ),
+///   ("sizes",        "array",         [the type sizes, see #lower[@sec-types]]             ),
 ///   ("description",  "string or none","a comment describing the generic"                   ),
 ///   ("default-value","string or none","the generic default value"                          ),
 /// 
@@ -149,11 +152,12 @@
 /// Generics list:
 /// 
 /// #table(
-///    columns: (2cm, 4cm, 6cm, 2cm),
-///    table.header([name], [type], [description], [default]),
+///    columns: (2cm, 3.5cm, 1.5cm, 6cm, 2cm),
+///    table.header([name], [type], [size], [description], [default]),
 ///    ..for entry in generics {
 ///     ( [#entry.name], 
-///       [#{entry.generic-type}#{entry.constraint}],
+///       [#entry.generic-type],
+///       [#entry.sizes.join("x")],
 ///       [#entry.description],
 ///       [#entry.default-value])
 ///     }
@@ -302,7 +306,7 @@
 
 /// Returns a description of an FSM in the DOT format, ready to be drawn by the diagraph package.
 /// 
-/// For more information about FSM detecton please refer to the @fsm function.
+/// For more information about FSM detection please refer to the @fsm function.
 /// 
 /// === Example
 /// ```example 
@@ -533,25 +537,27 @@
 ///  // elem name       elem type         elem description
 ///    ("name",        "string",         "the constant name"),
 ///    ("object-type", "string",         "the constant type"),
-///    ("constraint",  "string or none", "the type constraint (x downto y)"),
+///   ("constraint",   "string or none",[the type constraint, see #lower[@sec-types]]        ),
+///   ("sizes",        "array",         [the type sizes, see #lower[@sec-types]]             ),
 ///    ("expression",  "string or none", "the constant value"),
 ///    ("description", "string or none", "a comment describing the constant"),
 /// ))
 /// 
 /// === Example
 /// 
-/// ```Example
+/// ```example
 /// >>> #set text(font: ("DejaVu Sans", "Arial", "Helvetica"))
 /// List of Constants
 /// 
 /// #let constants = vhdl-parse.constants-list(parsed-file)
 /// 
 /// #table(
-///    columns: (2cm, 4cm, 3cm, 4cm),
-///    table.header([name], [type], [description], [value]),
+///    columns: (2cm, 3.5cm, 1.5cm, 3cm, 4cm),
+///    table.header([name], [type], [size], [description], [value]),
 ///    ..for entry in constants {
 ///        ( [#entry.name], 
-///          [#{entry.object_type}#{entry.constraint}], 
+///          [#entry.object-type],
+///          [#entry.sizes.join("x")], 
 ///          [#entry.description], 
 ///          [#entry.expression])
 ///    }
@@ -594,7 +600,8 @@
 ///    ("name",        "string",         "the signal name"),
 ///    ("object-type", "string",         "the signal type"),
 ///    ("expression",  "string or none", "the signal initial value"),
-///    ("constraint",  "string or none", "the type constraint (x downto y)"),
+///    ("constraint",   "string or none",[the type constraint, see #lower[@sec-types]]        ),
+///    ("sizes",        "array",         [the type sizes, see #lower[@sec-types]]             ),
 ///    ("description", "string or none", "a comment describing the signal"),
 /// ))
 /// 
@@ -606,11 +613,12 @@
 /// #let signals = vhdl-parse.signals-list(parsed-file)
 /// 
 /// #table(
-///    columns: (2cm, 3.5cm, 5cm, 3.5cm),
-///    table.header([name], [type], [description], [value]),
+///    columns: (2cm, 3.5cm, 1.5cm, 5cm, 3.5cm),
+///    table.header([name], [type], [size], [description], [value]),
 ///    ..for entry in signals {
 ///        ( [#entry.name], 
-///          [#{entry.object_type}#{entry.constraint}], 
+///          [#entry.object-type],
+///          [#entry.sizes.join("x")], 
 ///          [#entry.description], 
 ///          [#entry.expression])
 ///    }
@@ -674,13 +682,15 @@
 ///   #dictionary-description((
 ///  // elem name     elem type         elem description
 ///   ("subtype",    "string",         "the type name"),
-///   ("constraint", "string or none", "the constraint (x downto y)"),
+///   ("constraint",   "string or none",[the subtype constraint, see #lower[@sec-types]]        ),
+///   ("sizes",        "array",         [the subtype sizes, see #lower[@sec-types]]             ),
 /// ))
 /// - Array: a dictionary with the following elements:
 ///   #dictionary-description((
 ///  // elem name  elem type elem description
-///   ("range",   "string", "the array range(s)"),
-///   ("subtype", "string", "the array element type"),
+///   ("range",   "string or none",     [the array ranges as VHDL, see #lower[@sec-types]]        ),
+///   ("sizes",   "array",              [the array sizes, see #lower[@sec-types]]             ),
+///   ("subtype", "string",             "the array element type"),
 /// ))
 /// 
 /// === Example
