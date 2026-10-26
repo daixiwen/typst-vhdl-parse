@@ -61,7 +61,7 @@ be extracted from the VHDL file:
 - signals
 - custom types
 
-Additionnally, FSM information can be formatted to generate a figure using [diagraph](https://typst.app/universe/package/diagraph/)
+Additionally, FSM information can be formatted to generate a figure using [diagraph](https://typst.app/universe/package/diagraph/)
 
 ![FSM diagram](doc/FSM.png)
 
