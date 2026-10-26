@@ -4,6 +4,7 @@ pub mod entity_declaration;
 pub mod fsm;
 pub mod instances;
 pub mod parse_store;
+pub mod type_info;
 
 use serde::{Serialize, de::DeserializeOwned};
 

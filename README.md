@@ -16,7 +16,7 @@ in a way to present it in a readable manner.
 Import the module and use the `parse` function to parse a VHDL file.
 
 ```typ
-#import "@preview/vhdl-parse:0.1.0"
+#import "@preview/vhdl-parse:0.2.0"
 
 #let parsed-file = vhdl-parse.parse(
     "test.vhd", 
@@ -44,6 +44,7 @@ Which will return an array similar to this:
     name: "value",
     generic-type: "std_logic_vector",
     constraint: "(15 downto 0)",
+    sizes: ("16",),
     description: "a value with a default",
     default-value: "x\"DEAD\"",
   ),
@@ -64,6 +65,6 @@ details. The following information can be extracted from the VHDL file:
 - signals
 - custom types
 
-Additionnally, FSM information can be formatted to generate a figure using [diagraph](https://typst.app/universe/package/diagraph/)
+Additionally, FSM information can be formatted to generate a figure using [diagraph](https://typst.app/universe/package/diagraph/)
 
 ![FSM diagram](typst/doc/FSM.png)
