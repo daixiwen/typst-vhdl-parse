@@ -32,7 +32,7 @@
     contents, 
       /// (optional) The VHDL variant -> string | int
     vhdl-variant : 2008, 
-      /// (opttional) The default comment priority. Either "leading" or "trailing", see #lower[@sec-comments] -> string
+      /// (optional) The default comment priority. Either "leading" or "trailing", see #lower[@sec-comments] -> string
     comment-priority : "trailing") = {
 
   // arguments check and conversion
@@ -306,7 +306,7 @@
 
 /// Returns a description of an FSM in the DOT format, ready to be drawn by the diagraph package.
 /// 
-/// For more information about FSM detecton please refer to the @fsm function.
+/// For more information about FSM detection please refer to the @fsm function.
 /// 
 /// === Example
 /// ```example 

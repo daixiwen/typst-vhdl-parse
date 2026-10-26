@@ -166,7 +166,7 @@ used on both sides to transfer more complex structures.
 
 There is a very basic `AGENTS.md` file in the repository. I used #link("https://opencode.ai")[OpenCode]
 to kickstart the project because I couldn't find how to use the 
-#link("https://lib.rs/crates/vhdl_lang")[`vhdl_lang`] crate by mself, and to write some tests. The rest
+#link("https://lib.rs/crates/vhdl_lang")[`vhdl_lang`] crate by myself, and to write some tests. The rest
 was written manually, because it is pretty basic code, walking through the structures returned
 by #link("https://lib.rs/crates/vhdl_lang")[`vhdl_lang`] to find the relevant information and putting
 it in structures which can be serialized for Typst. I found it easier to just write the code than to
@@ -174,7 +174,7 @@ try to det en LLM to put it exactly in the way I wanted to. Maybe I'm just bad a
 
 == Caching
 
-The plugin caches results from a VHDL parsing, because I thought it would be very inneficient to redo it
+The plugin caches results from a VHDL parsing, because I thought it would be very inefficient to redo it
 at each function call. Unfortunately it makes it difficult to make the plugin
 #link("https://typst.app/docs/reference/foundations/plugin#purity")[pure] as required by Typst: a plugin
 function call must not have any observable side effects on future plugin calls, and given the same 
@@ -183,7 +183,7 @@ arguments, it must always return the same value.
 I have therefore implemented a cache system. The #link(label("vhdl-parse-parse()"), raw("parse()"))
 function stores the results of the parsing in a static cache, using the 
 #link("https://docs.rs/lazy_static/latest/lazy_static/")[lazystatic]. It returns an ID for typst, and
-the other functions use that ID as a parameter, so that the parsed VHDL can be extractd again from
+the other functions use that ID as a parameter, so that the parsed VHDL can be extracted again from
 the cache. To respect the purity requirement, the other functions also send the VHDL file name and 
 the contents with the ID. That way the plugin can parse the VHDL file again if needed, and
 technically the function is not dependent on previous calls, but still benefits from a cache.
