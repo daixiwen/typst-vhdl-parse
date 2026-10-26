@@ -102,6 +102,32 @@ are detected. The #link(label("vhdl-parse-parse()"), raw("parse()")) function ha
 #link(label("vhdl-parse-parse.comment-priority"), raw("comment-priority")) parameter to give the 
 default value, but it can then be overriden in all other function calls if needed.
 
+== Types <sec-types>
+
+VHDL types are parsed and returned as 3 different objects to allow some flexibility in 
+the presentation. For example the type `std_logic_vector(31 downto 0)` will be returned as:
+- type name: `std_logic_vector`
+- constraint or range: `(31 downto 0)`
+- sizes: `("32",)`
+
+Type name is the name of the type, excluding the constraint. Constraint is the constraint itself 
+without the type name, and sizes is an array with one element per dimension, giving the size
+of the type in that dimension, if it is constrained.
+
+The VHDL definition itself can always be reproduced by concatenating the type name and the
+constraint. The sizes array can be used to present the type size in a more readable way,
+avoiding the `to` or `downto` ranges. 
+
+For an array type such as 
+```vhdl
+type my_type is array (0 to num_elements-1) of std_logic_vector(7 downto 0) 
+```
+
+The returned elements for the array type are:
+- subtype name: `std_logic_vector`
+- range: `(0 to num_elements-1)(7 downto 0)`
+- sizes: `("num_elements", "8")`
+
 = Functions reference <sec-fref>
 
 // utility function to create a table describing the dictionaries
@@ -161,3 +187,24 @@ the other functions use that ID as a parameter, so that the parsed VHDL can be e
 the cache. To respect the purity requirement, the other functions also send the VHDL file name and 
 the contents with the ID. That way the plugin can parse the VHDL file again if needed, and
 technically the function is not dependent on previous calls, but still benefits from a cache.
+
+= History
+
+== Version 0.2.0
+
+=== Fixes, breaking changes
+
+The #link(label("vhdl-parse-types-list()"), raw("types-list()")) function
+returned dictionaries with element names using snake_case (such as `element_type`)
+instead of camel-case (such as `element-type`), contrary to what was indicated
+in the documentation. This is now fixed, but any script relying on the
+snake_case items from version 0.1.0 need to be changed.
+
+=== Improvements
+
+For VHDL types, added a `sizes` array which present the type size in a more readable way
+than a raw VHDL range. See #lower[@sec-types] for details.
+
+== Version 0.1.0
+
+First Release
