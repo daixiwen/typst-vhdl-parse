@@ -33,6 +33,7 @@ Which will return an array similar to this:
     name: "flag",
     generic-type: "boolean",
     constraint: none,
+    sizes: (,),
     description: "a flag, can be true or false",
     default-value: none,
   ),
