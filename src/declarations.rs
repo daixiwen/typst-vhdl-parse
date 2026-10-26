@@ -217,7 +217,7 @@ fn explore_declarations(
                     )),
                     Array(indices, _, subtype) => {
                         let indices_str: Vec<String> =
-                            indices.iter().map(|index| index.to_string()).collect();
+                            indices.iter().map(|index| format!("({})", index)).collect();
 
                         // there are so many possibilities here for how the range is expressed it's almost ridiculous
                         let sizes: Vec<String> = indices
@@ -241,7 +241,7 @@ fn explore_declarations(
                         Some((
                             "array",
                             TypeDefinition::Array(TypeDefinitionArray {
-                                range: indices_str.join(","),
+                                range: indices_str.join(""),
                                 subtype: subtype.to_string(),
                                 sizes,
                             }),
@@ -349,9 +349,9 @@ mod tests {
         let sigs_consts = get_declarations(design, false).unwrap();
 
         // check the constants list
-        assert_eq!(sigs_consts.constants.len(), 1);
+        assert_eq!(sigs_consts.constants.len(), 3);
 
-        // check the only constant
+        // check the first constant
         let my_constant = sigs_consts.constants.get(0).unwrap();
         assert_eq!(my_constant.name, "c_ones");
         assert_eq!(my_constant.object_type, "std_logic_vector");
@@ -489,8 +489,8 @@ mod tests {
         assert_eq!(matrix_type.description, Some("an array".to_owned()));
 
         if let TypeDefinition::Array(array) = &matrix_type.definition {
-            assert_eq!(array.range, "31 downto 0,7 downto 0");
-            assert_eq!(array.sizes, vec!["32", "8"]);
+            assert_eq!(array.range, "(0 to num_elements_x - 1)(0 to num_elements_y - 1)");
+            assert_eq!(array.sizes, vec!["num_elements_x", "num_elements_y"]);
             assert_eq!(array.subtype, "byte_t");
         } else {
             panic!("wrong type definition")

@@ -241,7 +241,6 @@
 == Constants
 
 #let constants = vhdl-parse.constants-list(parsed-file)
-
 #assert(
   constants == (
     (
@@ -251,6 +250,22 @@
       sizes: ("32",),
       expression: "(others => '1')",
       description: "a constant",
+    ),
+    (
+      name: "num_elements_x",
+      object-type: "natural",
+      constraint: none,
+      sizes: (),
+      expression: "16",
+      description: none,
+    ),
+    (
+      name: "num_elements_y",
+      object-type: "natural",
+      constraint: none,
+      sizes: (),
+      expression: "8",
+      description: none,
     ),
   ),
   message: "wrong constants",
@@ -353,8 +368,8 @@ types == (
       kind: "array",
       definition: (
         Array: (
-          range: "31 downto 0,7 downto 0",
-          sizes: ("32","8"), 
+          range: "(0 to num_elements_x - 1)(0 to num_elements_y - 1)",
+          sizes: ("num_elements_x", "num_elements_y"), 
           subtype: "byte_t"),
       ),
       description: "an array",
